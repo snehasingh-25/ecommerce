@@ -1,0 +1,92 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int       @id @default(autoincrement())
+  email     String    @unique
+  password  String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Category {
+  id          Int       @id @default(autoincrement())
+  name        String
+  slug        String    @unique
+  description String?   @db.Text
+  imageUrl    String?   @db.Text
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  products    Product[]
+}
+
+model Product {
+  id          Int            @id @default(autoincrement())
+  name        String
+  description String         @db.Text
+  badge       String?
+  isFestival  Boolean        @default(false)
+  isNew       Boolean        @default(false)
+  categoryId  Int
+  images      String         @db.Text // JSON array of image URLs
+  keywords    String         @db.Text // JSON array for multilingual search
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  category    Category       @relation(fields: [categoryId], references: [id])
+  sizes       ProductSize[]
+  orderItems  OrderItem[]
+}
+
+model ProductSize {
+  id        Int     @id @default(autoincrement())
+  label     String
+  price     Float
+  productId Int
+
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+model Order {
+  id        Int         @id @default(autoincrement())
+  customer  String
+  phone     String?     @db.Text
+  email     String?
+  address   String?     @db.Text
+  total     Float
+  status    String      @default("pending")
+  notes     String?     @db.Text
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  items     OrderItem[]
+}
+
+model OrderItem {
+  id          Int      @id @default(autoincrement())
+  orderId     Int
+  productId   Int
+  productName String
+  sizeLabel   String
+  quantity    Int
+  price       Float
+  subtotal    Float
+
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product     Product  @relation(fields: [productId], references: [id])
+}
+
+model ContactMessage {
+  id        Int       @id @default(autoincrement())
+  name      String
+  email     String
+  phone     String?
+  message   String    @db.Text
+  read      Boolean   @default(false)
+  createdAt DateTime  @default(now())
+}
