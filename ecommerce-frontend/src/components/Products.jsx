@@ -37,7 +37,7 @@ export default function Products() {
             onClick={() => {
               const msg = `Product: ${p.name}`;
               window.open(
-                `https://wa.me/919799964364?text=${encodeURIComponent(msg)}`
+                `https://wa.me/917976948872?text=${encodeURIComponent(msg)}`
               );
             }}
           >

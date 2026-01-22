@@ -1,6 +1,9 @@
 import { API } from "../../api";
 
 export default function ProductList({ products, onEdit, onDelete }) {
+  // Ensure products is always an array
+  const safeProducts = Array.isArray(products) ? products : [];
+
   const handleDelete = async (productId) => {
     if (!confirm("Are you sure you want to delete this product?")) return;
 
@@ -25,7 +28,7 @@ export default function ProductList({ products, onEdit, onDelete }) {
     }
   };
 
-  if (products.length === 0) {
+  if (safeProducts.length === 0) {
     return (
       <div className="bg-white rounded-xl shadow-md p-12 text-center border border-gray-200">
         <div className="text-6xl mb-4">📦</div>
@@ -37,7 +40,7 @@ export default function ProductList({ products, onEdit, onDelete }) {
   return (
     <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
       <div className="p-6 border-b border-gray-200">
-        <h3 className="text-lg font-bold text-gray-900">All Products ({products.length})</h3>
+        <h3 className="text-lg font-bold text-gray-900">All Products ({safeProducts.length})</h3>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full">
@@ -52,7 +55,7 @@ export default function ProductList({ products, onEdit, onDelete }) {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
-            {products.map((product) => {
+            {safeProducts.map((product) => {
               const images = product.images ? (Array.isArray(product.images) ? product.images : JSON.parse(product.images)) : [];
               return (
                 <tr key={product.id} className="hover:bg-gray-50 transition">
@@ -86,6 +89,11 @@ export default function ProductList({ products, onEdit, onDelete }) {
                       {product.isNew && (
                         <span className="px-2 py-1 bg-pink-100 text-pink-700 text-xs rounded-full font-semibold">
                           New
+                        </span>
+                      )}
+                      {product.isTrending && (
+                        <span className="px-2 py-1 bg-pink-100 text-pink-700 text-xs rounded-full font-semibold">
+                          Trending
                         </span>
                       )}
                       {product.badge && (

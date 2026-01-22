@@ -9,6 +9,10 @@ import categoryRoutes from "./routes/categories.js";
 import orderRoutes from "./routes/orders.js";
 import authRoutes from "./routes/auth.js";
 import contactRoutes from "./routes/contact.js";
+import cartRoutes from "./routes/cart.js";
+import reelRoutes from "./routes/reels.js";
+import occasionRoutes from "./routes/occasions.js";
+import bannerRoutes from "./routes/banners.js";
 
 dotenv.config();
 
@@ -36,6 +40,10 @@ app.use("/categories", categoryRoutes);
 app.use("/orders", orderRoutes);
 app.use("/auth", authRoutes);
 app.use("/contact", contactRoutes);
+app.use("/cart", cartRoutes);
+app.use("/reels", reelRoutes);
+app.use("/occasions", occasionRoutes);
+app.use("/banners", bannerRoutes);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {

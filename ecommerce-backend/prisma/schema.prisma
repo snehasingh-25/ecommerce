@@ -33,6 +33,7 @@ model Product {
   badge       String?
   isFestival  Boolean        @default(false)
   isNew       Boolean        @default(false)
+  isTrending  Boolean        @default(false)
   categoryId  Int
   images      String         @db.Text // JSON array of image URLs
   keywords    String         @db.Text // JSON array for multilingual search
@@ -42,6 +43,7 @@ model Product {
   category    Category       @relation(fields: [categoryId], references: [id])
   sizes       ProductSize[]
   orderItems  OrderItem[]
+  occasions   ProductOccasion[]
 }
 
 model ProductSize {
@@ -89,4 +91,52 @@ model ContactMessage {
   message   String    @db.Text
   read      Boolean   @default(false)
   createdAt DateTime  @default(now())
+}
+
+model Reel {
+  id          Int       @id @default(autoincrement())
+  title       String?
+  url         String    @db.Text // YouTube/Instagram reel URL or embed URL
+  thumbnail   String?   @db.Text // Thumbnail image URL
+  platform    String    @default("youtube") // youtube, instagram, etc.
+  isActive    Boolean   @default(true)
+  order       Int       @default(0) // For ordering reels
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Occasion {
+  id          Int              @id @default(autoincrement())
+  name        String
+  slug        String           @unique
+  description String?          @db.Text
+  imageUrl    String?          @db.Text
+  isActive    Boolean          @default(true)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  products    ProductOccasion[]
+}
+
+model ProductOccasion {
+  id         Int      @id @default(autoincrement())
+  productId  Int
+  occasionId Int
+
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  occasion   Occasion @relation(fields: [occasionId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, occasionId])
+}
+
+model Banner {
+  id          Int       @id @default(autoincrement())
+  title       String
+  subtitle    String?   @db.Text
+  imageUrl    String    @db.Text
+  ctaText     String?   // Call-to-action button text
+  ctaLink     String?   @db.Text // Call-to-action link URL
+  isActive    Boolean   @default(true)
+  order       Int       @default(0) // For ordering banners
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 }

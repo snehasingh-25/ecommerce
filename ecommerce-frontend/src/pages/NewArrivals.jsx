@@ -12,10 +12,10 @@ export default function NewArrivals() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-pink-50 to-white py-16">
+    <div className="min-h-screen py-16">
       <div className="px-8 max-w-6xl mx-auto">
         <div className="text-center mb-12">
-          <h2 className="text-4xl font-bold mb-4 text-pink-400">New Arrivals ✨</h2>
+          <h2 className="text-4xl font-bold mb-4">New Arrivals</h2>
           <p className="text-gray-600 text-lg">Discover our latest and most exciting gift collections</p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">

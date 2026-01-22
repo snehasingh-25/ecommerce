@@ -10,12 +10,21 @@ const router = express.Router();
 // Get all products (public)
 router.get("/", async (req, res) => {
   try {
-    const { category, isNew, isFestival } = req.query;
+    const { category, occasion, isNew, isFestival, isTrending, search } = req.query;
     
     // Build where clause
     const where = {};
     if (category) {
       where.category = { slug: category };
+    }
+    if (occasion) {
+      where.occasions = {
+        some: {
+          occasion: {
+            slug: occasion
+          }
+        }
+      };
     }
     if (isNew === "true") {
       where.isNew = true;
@@ -23,12 +32,55 @@ router.get("/", async (req, res) => {
     if (isFestival === "true") {
       where.isFestival = true;
     }
+    if (isTrending === "true") {
+      where.isTrending = true;
+    }
+    if (search) {
+      // First, try to find matching occasions
+      const matchingOccasions = await prisma.occasion.findMany({
+        where: {
+          OR: [
+            { name: { contains: search } },
+            { slug: { contains: search.toLowerCase().replace(/\s+/g, '-') } },
+          ],
+          isActive: true
+        },
+        select: { id: true }
+      });
+
+      const occasionIds = matchingOccasions.map(o => o.id);
+
+      // Search in name, description, keywords, and occasions
+      const searchConditions = [
+        { name: { contains: search } },
+        { description: { contains: search } },
+        { name: { startsWith: search } }, // Partial match at start
+      ];
+
+      // If matching occasions found, include products linked to those occasions
+      if (occasionIds.length > 0) {
+        searchConditions.push({
+          occasions: {
+            some: {
+              occasionId: { in: occasionIds }
+            }
+          }
+        });
+      }
+
+      where.OR = searchConditions;
+    }
 
     const products = await prisma.product.findMany({
       where,
       include: { 
         sizes: true,
         category: true,
+        occasions: {
+          include: {
+            occasion: true
+          }
+        }
       },
       orderBy: { createdAt: "desc" },
     });
@@ -38,6 +90,7 @@ router.get("/", async (req, res) => {
       ...p,
       images: p.images ? JSON.parse(p.images) : [],
       keywords: p.keywords ? JSON.parse(p.keywords) : [],
+      occasions: p.occasions ? p.occasions.map(po => po.occasion) : [],
     }));
 
     res.json(parsed);
@@ -54,6 +107,11 @@ router.get("/:id", async (req, res) => {
       include: { 
         sizes: true,
         category: true,
+        occasions: {
+          include: {
+            occasion: true
+          }
+        }
       },
     });
 
@@ -65,6 +123,7 @@ router.get("/:id", async (req, res) => {
       ...product,
       images: product.images ? JSON.parse(product.images) : [],
       keywords: product.keywords ? JSON.parse(product.keywords) : [],
+      occasions: product.occasions ? product.occasions.map(po => po.occasion) : [],
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -74,7 +133,7 @@ router.get("/:id", async (req, res) => {
 // Add product (Admin only)
 router.post("/", verifyToken, upload.array("images", 10), async (req, res) => {
   try {
-    const { name, description, badge, isFestival, isNew, categoryId, sizes, keywords } = req.body;
+    const { name, description, badge, isFestival, isNew, isTrending, categoryId, sizes, keywords, occasionIds } = req.body;
 
     // Upload images
     const imageUrls = [];
@@ -95,6 +154,9 @@ router.post("/", verifyToken, upload.array("images", 10), async (req, res) => {
       price: parseFloat(size.price) || 0,
     }));
 
+    // Parse occasion IDs
+    const occasionIdsArray = occasionIds ? JSON.parse(occasionIds) : [];
+
     const product = await prisma.product.create({
       data: {
         name,
@@ -102,20 +164,34 @@ router.post("/", verifyToken, upload.array("images", 10), async (req, res) => {
         badge: badge || null,
         isFestival: isFestival === "true" || isFestival === true,
         isNew: isNew === "true" || isNew === true,
+        isTrending: isTrending === "true" || isTrending === true,
         categoryId: Number(categoryId),
         images: JSON.stringify(imageUrls),
         keywords: JSON.stringify(keywordsArray),
         sizes: {
           create: sizesWithFloatPrices,
         },
+        occasions: {
+          create: occasionIdsArray.map(occasionId => ({
+            occasionId: Number(occasionId)
+          }))
+        }
       },
-      include: { sizes: true },
+      include: { 
+        sizes: true,
+        occasions: {
+          include: {
+            occasion: true
+          }
+        }
+      },
     });
 
     res.json({
       ...product,
       images: imageUrls,
       keywords: keywordsArray,
+      occasions: product.occasions ? product.occasions.map(po => po.occasion) : [],
     });
   } catch (error) {
     console.error("Create product error:", error);
@@ -126,7 +202,7 @@ router.post("/", verifyToken, upload.array("images", 10), async (req, res) => {
 // Update product (Admin only)
 router.put("/:id", verifyToken, upload.array("images", 10), async (req, res) => {
   try {
-    const { name, description, badge, isFestival, isNew, categoryId, sizes, keywords, existingImages } = req.body;
+    const { name, description, badge, isFestival, isNew, isTrending, categoryId, sizes, keywords, existingImages, occasionIds } = req.body;
 
     const existingProduct = await prisma.product.findUnique({
       where: { id: Number(req.params.id) },
@@ -160,6 +236,14 @@ router.put("/:id", verifyToken, upload.array("images", 10), async (req, res) => 
       where: { productId: Number(req.params.id) },
     });
 
+    // Delete old occasion links
+    await prisma.productOccasion.deleteMany({
+      where: { productId: Number(req.params.id) },
+    });
+
+    // Parse occasion IDs
+    const occasionIdsArray = occasionIds ? JSON.parse(occasionIds) : [];
+
     const product = await prisma.product.update({
       where: { id: Number(req.params.id) },
       data: {
@@ -168,20 +252,34 @@ router.put("/:id", verifyToken, upload.array("images", 10), async (req, res) => 
         badge: badge || null,
         isFestival: isFestival === "true" || isFestival === true,
         isNew: isNew === "true" || isNew === true,
+        isTrending: isTrending === "true" || isTrending === true,
         categoryId: Number(categoryId),
         images: JSON.stringify(imageUrls),
         keywords: JSON.stringify(keywordsArray),
         sizes: {
           create: sizesWithFloatPrices,
         },
+        occasions: {
+          create: occasionIdsArray.map(occasionId => ({
+            occasionId: Number(occasionId)
+          }))
+        }
       },
-      include: { sizes: true },
+      include: { 
+        sizes: true,
+        occasions: {
+          include: {
+            occasion: true
+          }
+        }
+      },
     });
 
     res.json({
       ...product,
       images: imageUrls,
       keywords: keywordsArray,
+      occasions: product.occasions ? product.occasions.map(po => po.occasion) : [],
     });
   } catch (error) {
     console.error("Update product error:", error);

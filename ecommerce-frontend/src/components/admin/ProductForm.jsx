@@ -2,19 +2,21 @@ import { useState, useEffect } from "react";
 import { API } from "../../api";
 import ImageUpload from "./ImageUpload";
 
-export default function ProductForm({ product, categories, onSave }) {
+export default function ProductForm({ product, categories, occasions = [], onSave }) {
   const [formData, setFormData] = useState({
     name: "",
     description: "",
     badge: "",
     isFestival: false,
     isNew: false,
+    isTrending: false,
     categoryId: "",
     keywords: "",
   });
   const [sizes, setSizes] = useState([{ label: "", price: "" }]);
   const [images, setImages] = useState([]);
   const [existingImages, setExistingImages] = useState([]);
+  const [selectedOccasions, setSelectedOccasions] = useState([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -25,6 +27,7 @@ export default function ProductForm({ product, categories, onSave }) {
         badge: product.badge || "",
         isFestival: product.isFestival || false,
         isNew: product.isNew || false,
+        isTrending: product.isTrending || false,
         categoryId: product.categoryId || "",
         keywords: product.keywords ? (Array.isArray(product.keywords) ? product.keywords.join(", ") : product.keywords) : "",
       });
@@ -34,6 +37,11 @@ export default function ProductForm({ product, categories, onSave }) {
           : [{ label: "", price: "" }]
       );
       setExistingImages(product.images || []);
+      setSelectedOccasions(
+        product.occasions && product.occasions.length > 0
+          ? product.occasions.map((o) => o.id)
+          : []
+      );
     } else {
       // Reset form
       setFormData({
@@ -42,12 +50,14 @@ export default function ProductForm({ product, categories, onSave }) {
         badge: "",
         isFestival: false,
         isNew: false,
+        isTrending: false,
         categoryId: "",
         keywords: "",
       });
       setSizes([{ label: "", price: "" }]);
       setImages([]);
       setExistingImages([]);
+      setSelectedOccasions([]);
     }
   }, [product]);
 
@@ -64,9 +74,11 @@ export default function ProductForm({ product, categories, onSave }) {
       formDataToSend.append("badge", formData.badge);
       formDataToSend.append("isFestival", formData.isFestival);
       formDataToSend.append("isNew", formData.isNew);
+      formDataToSend.append("isTrending", formData.isTrending);
       formDataToSend.append("categoryId", formData.categoryId);
       formDataToSend.append("keywords", JSON.stringify(formData.keywords.split(",").map((k) => k.trim()).filter(k => k)));
       formDataToSend.append("sizes", JSON.stringify(sizes.filter((s) => s.label && s.price)));
+      formDataToSend.append("occasionIds", JSON.stringify(selectedOccasions));
 
       if (product && existingImages.length > 0) {
         formDataToSend.append("existingImages", JSON.stringify(existingImages));
@@ -99,12 +111,14 @@ export default function ProductForm({ product, categories, onSave }) {
           badge: "",
           isFestival: false,
           isNew: false,
+          isTrending: false,
           categoryId: "",
           keywords: "",
         });
         setSizes([{ label: "", price: "" }]);
         setImages([]);
         setExistingImages([]);
+        setSelectedOccasions([]);
       } else {
         alert("Error: " + (data.error || data.message || "Failed to save product"));
       }
@@ -217,9 +231,46 @@ export default function ProductForm({ product, categories, onSave }) {
                 />
                 <span className="text-sm text-gray-700">New Arrival</span>
               </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={formData.isTrending}
+                  onChange={(e) => setFormData({ ...formData, isTrending: e.target.checked })}
+                  className="w-4 h-4 text-pink-600 rounded focus:ring-pink-500"
+                />
+                <span className="text-sm text-gray-700">Trending</span>
+              </label>
             </div>
           </div>
         </div>
+
+        {occasions.length > 0 && (
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Occasions</label>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 p-4 border-2 border-gray-200 rounded-lg">
+              {occasions.filter(o => o.isActive).map((occasion) => (
+                <label key={occasion.id} className="flex items-center gap-2 cursor-pointer hover:bg-pink-50 p-2 rounded transition">
+                  <input
+                    type="checkbox"
+                    checked={selectedOccasions.includes(occasion.id)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedOccasions([...selectedOccasions, occasion.id]);
+                      } else {
+                        setSelectedOccasions(selectedOccasions.filter(id => id !== occasion.id));
+                      }
+                    }}
+                    className="w-4 h-4 text-pink-600 rounded focus:ring-pink-500"
+                  />
+                  <span className="text-sm text-gray-700">{occasion.name}</span>
+                </label>
+              ))}
+            </div>
+            {selectedOccasions.length === 0 && (
+              <p className="text-xs text-gray-500 mt-2">Select occasions this product is suitable for (optional)</p>
+            )}
+          </div>
+        )}
 
         <ImageUpload
           images={images}
@@ -291,6 +342,7 @@ export default function ProductForm({ product, categories, onSave }) {
                   badge: "",
                   isFestival: false,
                   isNew: false,
+                  isTrending: false,
                   categoryId: "",
                   keywords: "",
                 });
