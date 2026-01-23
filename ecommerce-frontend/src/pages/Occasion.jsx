@@ -1,51 +1,106 @@
 import { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useSearchParams } from "react-router-dom";
 import { API } from "../api";
 import ProductCard from "../components/ProductCard";
 
 export default function Occasion() {
   const { slug } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const categoryFilter = searchParams.get("category") || "";
   const [occasions, setOccasions] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [selectedOccasion, setSelectedOccasion] = useState(null);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchOccasionProducts = async (occasionSlug) => {
+  const fetchOccasionProducts = async (occasionSlug, category = "") => {
     try {
-      const res = await fetch(`${API}/occasions/${occasionSlug}`);
-      const data = await res.json();
-      setSelectedOccasion(data);
-      setProducts(data.products || []);
+      if (category) {
+        // Fetch products filtered by both occasion and category
+        const params = new URLSearchParams();
+        params.append("occasion", occasionSlug);
+        params.append("category", category);
+        const res = await fetch(`${API}/products?${params.toString()}`);
+        const data = await res.json();
+        setProducts(data || []);
+        
+        // Also fetch occasion details
+        const occasionRes = await fetch(`${API}/occasions/${occasionSlug}`);
+        const occasionData = await occasionRes.json();
+        setSelectedOccasion(occasionData);
+      } else {
+        // Fetch all products for the occasion
+        const res = await fetch(`${API}/occasions/${occasionSlug}`);
+        const data = await res.json();
+        setSelectedOccasion(data);
+        setProducts(data.products || []);
+      }
     } catch (error) {
       console.error("Error fetching occasion products:", error);
     }
   };
 
   useEffect(() => {
-    // Fetch all occasions
-    fetch(`${API}/occasions`)
-      .then(res => res.json())
-      .then(data => {
-        setOccasions(data);
+    let isMounted = true;
+    
+    // Fetch all occasions and categories
+    Promise.all([
+      fetch(`${API}/occasions`).then(res => res.json()),
+      fetch(`${API}/categories`).then(res => res.json())
+    ])
+      .then(([occasionsData, categoriesData]) => {
+        if (!isMounted) return;
+        
+        setOccasions(occasionsData);
+        setCategories(categoriesData);
+        
         // If slug is provided, find and set the occasion
         if (slug) {
-          const occasion = data.find(o => o.slug === slug);
+          const occasion = occasionsData.find(o => o.slug === slug);
           if (occasion) {
             setSelectedOccasion(occasion);
-            fetchOccasionProducts(occasion.slug);
           }
         }
         setLoading(false);
       })
       .catch(error => {
-        console.error("Error fetching occasions:", error);
+        if (!isMounted) return;
+        console.error("Error fetching data:", error);
         setLoading(false);
       });
+
+    return () => {
+      isMounted = false;
+    };
   }, [slug]);
+
+  useEffect(() => {
+    if (selectedOccasion && slug) {
+      fetchOccasionProducts(selectedOccasion.slug, categoryFilter);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categoryFilter, slug, selectedOccasion?.slug]);
 
   const handleOccasionClick = (occasion) => {
     setSelectedOccasion(occasion);
-    fetchOccasionProducts(occasion.slug);
+    fetchOccasionProducts(occasion.slug, categoryFilter);
+  };
+
+  const handleCategoryChange = (e) => {
+    const newCategory = e.target.value;
+    const params = new URLSearchParams(searchParams);
+    if (newCategory) {
+      params.set("category", newCategory);
+    } else {
+      params.delete("category");
+    }
+    setSearchParams(params);
+  };
+
+  const clearCategoryFilter = () => {
+    const params = new URLSearchParams(searchParams);
+    params.delete("category");
+    setSearchParams(params);
   };
 
   if (loading) {
@@ -114,8 +169,57 @@ export default function Occasion() {
                 {selectedOccasion.name}
               </h3>
               {selectedOccasion.description && (
-                <p className="text-lg" style={{ color: 'oklch(60% .02 340)' }}>
+                <p className="text-lg mb-4" style={{ color: 'oklch(60% .02 340)' }}>
                   {selectedOccasion.description}
+                </p>
+              )}
+
+              {/* Category Filter */}
+              <div className="flex flex-wrap items-center gap-4 mb-6">
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-semibold" style={{ color: 'oklch(40% .02 340)' }}>
+                    Filter by Category:
+                  </label>
+                  <select
+                    value={categoryFilter}
+                    onChange={handleCategoryChange}
+                    className="px-4 py-2 rounded-lg border-2 text-sm transition-all duration-300 focus:outline-none"
+                    style={{
+                      borderColor: 'oklch(92% .04 340)',
+                      backgroundColor: 'white',
+                      color: 'oklch(20% .02 340)'
+                    }}
+                    onFocus={(e) => e.target.style.borderColor = 'oklch(88% .06 340)'}
+                    onBlur={(e) => e.target.style.borderColor = 'oklch(92% .04 340)'}
+                  >
+                    <option value="">All Categories</option>
+                    {categories.map((cat) => (
+                      <option key={cat.id} value={cat.slug}>
+                        {cat.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {categoryFilter && (
+                  <button
+                    onClick={clearCategoryFilter}
+                    className="px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-300"
+                    style={{
+                      backgroundColor: 'oklch(92% .04 340)',
+                      color: 'oklch(20% .02 340)'
+                    }}
+                    onMouseEnter={(e) => e.target.style.backgroundColor = 'oklch(88% .06 340)'}
+                    onMouseLeave={(e) => e.target.style.backgroundColor = 'oklch(92% .04 340)'}
+                  >
+                    Clear Filter
+                  </button>
+                )}
+              </div>
+
+              {categoryFilter && (
+                <p className="text-sm mb-4" style={{ color: 'oklch(60% .02 340)' }}>
+                  Showing products in {categories.find(c => c.slug === categoryFilter)?.name || categoryFilter} category
                 </p>
               )}
             </div>

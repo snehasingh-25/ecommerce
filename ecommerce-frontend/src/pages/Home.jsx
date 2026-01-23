@@ -510,19 +510,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* Floating Chat Button */}
-      <div className="fixed bottom-8 right-8 z-50">
-        <button 
-          className="text-white rounded-full w-16 h-16 shadow-2xl hover:scale-110 transition-all duration-300 flex items-center justify-center group active:scale-95 animate-pulse hover:animate-none"
-          style={{ backgroundColor: 'oklch(92% .04 340)' }}
-          onMouseEnter={(e) => e.target.style.backgroundColor = 'oklch(88% .06 340)'}
-          onMouseLeave={(e) => e.target.style.backgroundColor = 'oklch(92% .04 340)'}
-        >
-          <svg className="w-6 h-6 group-hover:scale-110 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-          </svg>
-        </button>
-      </div>
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { CartProvider } from "./context/CartContext";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import ProtectedRoute from "./components/ProtectedRoute";
+import ChatBot from "./components/ChatBot";
 
 import Home from "./pages/Home";
 import About from "./pages/About";
@@ -21,21 +22,22 @@ function PublicLayout() {
   return (
     <>
       <Navbar />
-                <Routes>
-                  <Route path="/" element={<Home />} />
-                  <Route path="/shop" element={<Home />} />
-                  <Route path="/categories" element={<CategoriesPage />} />
-                  <Route path="/category/:slug" element={<CategoriesPage />} />
-                  <Route path="/product/:id" element={<ProductDetail />} />
-                  <Route path="/cart" element={<Cart />} />
-                  <Route path="/occasion" element={<Occasion />} />
-                  <Route path="/occasion/:slug" element={<Occasion />} />
-                  <Route path="/new" element={<NewArrivals />} />
-                  <Route path="/search" element={<Search />} />
-                  <Route path="/about" element={<About />} />
-                  <Route path="/contact" element={<Contact />} />
-                </Routes>
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/shop" element={<Home />} />
+        <Route path="/categories" element={<CategoriesPage />} />
+        <Route path="/category/:slug" element={<CategoriesPage />} />
+        <Route path="/product/:id" element={<ProductDetail />} />
+        <Route path="/cart" element={<Cart />} />
+        <Route path="/occasion" element={<Occasion />} />
+        <Route path="/occasion/:slug" element={<Occasion />} />
+        <Route path="/new" element={<NewArrivals />} />
+        <Route path="/search" element={<Search />} />
+        <Route path="/about" element={<About />} />
+        <Route path="/contact" element={<Contact />} />
+      </Routes>
       <Footer />
+      <ChatBot />
     </>
   );
 }
