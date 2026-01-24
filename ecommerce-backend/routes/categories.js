@@ -16,7 +16,7 @@ router.get("/", async (req, res) => {
           select: { products: true },
         },
       },
-      orderBy: { name: "asc" },
+      orderBy: [{ order: "asc" }, { name: "asc" }],
     });
     res.json(categories);
   } catch (error) {
@@ -45,7 +45,7 @@ router.get("/:id", async (req, res) => {
 // Create category (Admin only)
 router.post("/", verifyToken, upload.single("image"), async (req, res) => {
   try {
-    const { name, slug, description } = req.body;
+    const { name, slug, description, order } = req.body;
     
     let imageUrl = null;
     if (req.file) {
@@ -58,6 +58,7 @@ router.post("/", verifyToken, upload.single("image"), async (req, res) => {
         slug: slug || name.toLowerCase().replace(/\s+/g, "-"),
         description: description || null,
         imageUrl: imageUrl || null,
+        order: order !== undefined && order !== null && order !== "" ? Number(order) : 0,
       },
     });
     res.json(category);
@@ -72,7 +73,7 @@ router.post("/", verifyToken, upload.single("image"), async (req, res) => {
 // Update category (Admin only)
 router.put("/:id", verifyToken, upload.single("image"), async (req, res) => {
   try {
-    const { name, slug, description, existingImageUrl } = req.body;
+    const { name, slug, description, existingImageUrl, order } = req.body;
     
     let imageUrl = existingImageUrl || null;
     if (req.file) {
@@ -86,6 +87,7 @@ router.put("/:id", verifyToken, upload.single("image"), async (req, res) => {
         slug: slug || name.toLowerCase().replace(/\s+/g, "-"),
         description: description || null,
         imageUrl: imageUrl || null,
+        order: order !== undefined && order !== null && order !== "" ? Number(order) : 0,
       },
     });
     res.json(category);

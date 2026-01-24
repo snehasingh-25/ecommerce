@@ -21,9 +21,12 @@ model Category {
   slug        String    @unique
   description String?   @db.Text
   imageUrl    String?   @db.Text
+  order       Int       @default(0)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   products    Product[]
+
+  @@index([order])
 }
 
 model Product {
@@ -44,6 +47,12 @@ model Product {
   sizes       ProductSize[]
   orderItems  OrderItem[]
   occasions   ProductOccasion[]
+  reels       Reel[]
+
+  @@index([createdAt])
+  @@index([isTrending, createdAt])
+  @@index([isNew, createdAt])
+  @@index([isFestival, createdAt])
 }
 
 model ProductSize {
@@ -96,13 +105,28 @@ model ContactMessage {
 model Reel {
   id          Int       @id @default(autoincrement())
   title       String?
-  url         String    @db.Text // YouTube/Instagram reel URL or embed URL
+  // Legacy fields (kept for backwards compatibility with existing data)
+  url         String?   @db.Text // External reel URL (youtube/instagram)
   thumbnail   String?   @db.Text // Thumbnail image URL
-  platform    String    @default("youtube") // youtube, instagram, etc.
+  platform    String    @default("native") // native, youtube, instagram
+
+  // Native reels (play directly on website)
+  videoUrl    String?   @db.Text // Uploaded video URL (/uploads/... or Cloudinary)
+
+  // Merchandising / CMS controls
+  productId   Int?
+  product     Product?  @relation(fields: [productId], references: [id])
+  isTrending  Boolean   @default(false)
+  viewCount   Int       @default(0)
+  discountPct Int?      // e.g. 48
+
   isActive    Boolean   @default(true)
   order       Int       @default(0) // For ordering reels
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+
+  @@index([isActive, order])
+  @@index([isTrending, order])
 }
 
 model Occasion {

@@ -28,7 +28,15 @@ app.use(cors({
 app.use(express.json());
 
 // Serve uploaded files
-app.use("/uploads", express.static(join(__dirname, "uploads")));
+app.use(
+  "/uploads",
+  express.static(join(__dirname, "uploads"), {
+    etag: true,
+    lastModified: true,
+    maxAge: "30d",
+    immutable: true,
+  })
+);
 
 // Routes
 app.get("/", (req, res) => {

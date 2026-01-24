@@ -49,7 +49,8 @@ const storage = multer.diskStorage({
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
     const ext = file.originalname.split(".").pop();
-    cb(null, `image-${uniqueSuffix}.${ext}`);
+    const prefix = file.mimetype.startsWith("video/") ? "video" : "image";
+    cb(null, `${prefix}-${uniqueSuffix}.${ext}`);
   },
 });
 
@@ -68,6 +69,21 @@ const upload = multer({
 });
 
 export default upload;
+
+// Video upload (larger size)
+export const uploadVideo = multer({
+  storage: storage,
+  limits: {
+    fileSize: 50 * 1024 * 1024, // 50MB
+  },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith("video/")) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only video files are allowed"), false);
+    }
+  },
+});
 
 // Helper function to upload to Cloudinary
 export const uploadToCloudinary = async (filePath) => {
@@ -97,5 +113,22 @@ export const getImageUrl = async (file) => {
     }
   }
   // Return local file path
+  return `/uploads/${file.filename}`;
+};
+
+export const getVideoUrl = async (file) => {
+  if (cloudinaryConfig) {
+    try {
+      const result = await cloudinary.uploader.upload(file.path, {
+        folder: "ecommerce",
+        resource_type: "video",
+      });
+      fs.unlinkSync(file.path);
+      return result.secure_url;
+    } catch (error) {
+      console.error("Cloudinary video upload error:", error);
+      // fall through to local
+    }
+  }
   return `/uploads/${file.filename}`;
 };

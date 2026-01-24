@@ -11,6 +11,10 @@ const router = express.Router();
 router.get("/", async (req, res) => {
   try {
     const { category, occasion, isNew, isFestival, isTrending, search } = req.query;
+    const limitRaw = req.query.limit;
+    const offsetRaw = req.query.offset;
+    const limit = typeof limitRaw === "string" ? Math.min(Math.max(parseInt(limitRaw, 10) || 0, 0), 50) : 0;
+    const offset = typeof offsetRaw === "string" ? Math.max(parseInt(offsetRaw, 10) || 0, 0) : 0;
     
     // Build where clause
     const where = {};
@@ -71,19 +75,39 @@ router.get("/", async (req, res) => {
       where.OR = searchConditions;
     }
 
-    const products = await prisma.product.findMany({
-      where,
-      include: { 
-        sizes: true,
-        category: true,
-        occasions: {
-          include: {
-            occasion: true
-          }
-        }
+    const include = {
+      sizes: true,
+      category: true,
+      occasions: {
+        include: {
+          occasion: true,
+        },
       },
+    };
+
+    const queryBase = {
+      where,
+      include,
       orderBy: { createdAt: "desc" },
-    });
+    };
+
+    let products = [];
+    if (limit > 0) {
+      const [items, total] = await prisma.$transaction([
+        prisma.product.findMany({
+          ...queryBase,
+          skip: offset,
+          take: limit,
+        }),
+        prisma.product.count({ where }),
+      ]);
+      products = items;
+      res.setHeader("X-Total-Count", String(total));
+      res.setHeader("X-Limit", String(limit));
+      res.setHeader("X-Offset", String(offset));
+    } else {
+      products = await prisma.product.findMany(queryBase);
+    }
 
     // Parse JSON fields
     const parsed = products.map(p => ({
