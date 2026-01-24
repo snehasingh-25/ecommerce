@@ -44,15 +44,15 @@ router.get("/all", verifyToken, async (req, res) => {
 // Create reel (Admin only)
 router.post("/", verifyToken, async (req, res) => {
   try {
-    const { title, url, thumbnail, platform, isActive, order, productId, isTrending, discountPct } = req.body;
+    const { title, url, videoUrl, thumbnail, platform, isActive, order, productId, isTrending, discountPct } = req.body;
 
     const reel = await prisma.reel.create({
       data: {
         title: title || null,
-        url,
+        url: url || null,
+        videoUrl: videoUrl || url || null, // Use videoUrl if provided, fallback to url
         thumbnail: thumbnail || null,
         platform: platform || "native",
-        videoUrl: null,
         productId: productId ? Number(productId) : null,
         isTrending: isTrending === "true" || isTrending === true,
         discountPct: discountPct !== undefined && discountPct !== null && discountPct !== "" ? Number(discountPct) : null,
@@ -70,25 +70,30 @@ router.post("/", verifyToken, async (req, res) => {
 // Update reel (Admin only)
 router.put("/:id", verifyToken, async (req, res) => {
   try {
-    const { title, url, thumbnail, platform, isActive, order, productId, isTrending, discountPct } = req.body;
+    const { title, url, videoUrl, thumbnail, platform, isActive, order, productId, isTrending, discountPct } = req.body;
+
+    const updateData = {};
+    if (title !== undefined) updateData.title = title;
+    if (url !== undefined) updateData.url = url;
+    if (videoUrl !== undefined) {
+      updateData.videoUrl = videoUrl || url || null; // Use videoUrl if provided, fallback to url
+    } else if (url !== undefined) {
+      // If only url is provided, also update videoUrl
+      updateData.videoUrl = url || null;
+    }
+    if (thumbnail !== undefined) updateData.thumbnail = thumbnail;
+    if (platform !== undefined) updateData.platform = platform;
+    if (productId !== undefined) updateData.productId = productId ? Number(productId) : null;
+    if (isTrending !== undefined) updateData.isTrending = isTrending === "true" || isTrending === true;
+    if (discountPct !== undefined) {
+      updateData.discountPct = discountPct !== null && discountPct !== "" ? Number(discountPct) : null;
+    }
+    if (isActive !== undefined) updateData.isActive = isActive;
+    if (order !== undefined) updateData.order = order;
 
     const reel = await prisma.reel.update({
       where: { id: Number(req.params.id) },
-      data: {
-        title: title !== undefined ? title : undefined,
-        url: url !== undefined ? url : undefined,
-        thumbnail: thumbnail !== undefined ? thumbnail : undefined,
-        platform: platform || undefined,
-        videoUrl: undefined,
-        productId: productId !== undefined ? (productId ? Number(productId) : null) : undefined,
-        isTrending: isTrending !== undefined ? (isTrending === "true" || isTrending === true) : undefined,
-        discountPct:
-          discountPct !== undefined
-            ? (discountPct !== null && discountPct !== "" ? Number(discountPct) : null)
-            : undefined,
-        isActive: isActive !== undefined ? isActive : undefined,
-        order: order !== undefined ? order : undefined,
-      },
+      data: updateData,
     });
 
     res.json(reel);
