@@ -40,6 +40,7 @@ model Product {
   categoryId  Int
   images      String         @db.Text // JSON array of image URLs
   keywords    String         @db.Text // JSON array for multilingual search
+  order       Int            @default(0) // For ordering products
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
 
@@ -53,6 +54,7 @@ model Product {
   @@index([isTrending, createdAt])
   @@index([isNew, createdAt])
   @@index([isFestival, createdAt])
+  @@index([order])
 }
 
 model ProductSize {
@@ -117,6 +119,7 @@ model Reel {
   productId   Int?
   product     Product?  @relation(fields: [productId], references: [id])
   isTrending  Boolean   @default(false)
+  isFeatured  Boolean   @default(false) // Primary featured video in center
   viewCount   Int       @default(0)
   discountPct Int?      // e.g. 48
 
@@ -127,6 +130,7 @@ model Reel {
 
   @@index([isActive, order])
   @@index([isTrending, order])
+  @@index([isFeatured])
 }
 
 model Occasion {

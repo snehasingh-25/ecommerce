@@ -103,17 +103,65 @@ router.put("/:id", verifyToken, upload.single("image"), async (req, res) => {
   }
 });
 
+// Update order for multiple categories (Admin only)
+router.post("/reorder", verifyToken, async (req, res) => {
+  try {
+    const { items } = req.body; // Array of { id, order }
+    
+    if (!Array.isArray(items)) {
+      return res.status(400).json({ message: "Items must be an array" });
+    }
+
+    // Invalidate categories cache
+    invalidateCache("/categories");
+
+    // Update all categories in a transaction
+    await prisma.$transaction(
+      items.map((item) =>
+        prisma.category.update({
+          where: { id: Number(item.id) },
+          data: { order: Number(item.order) },
+        })
+      )
+    );
+
+    res.json({ message: "Order updated successfully" });
+  } catch (error) {
+    console.error("Reorder categories error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Delete category (Admin only)
 router.delete("/:id", verifyToken, async (req, res) => {
   try {
+    const categoryId = Number(req.params.id);
+    
+    // Check if any products are using this category
+    const productsCount = await prisma.product.count({
+      where: { categoryId },
+    });
+    
+    if (productsCount > 0) {
+      return res.status(400).json({ 
+        message: `Cannot delete category. ${productsCount} product(s) are still using this category. Please delete or reassign the products first.` 
+      });
+    }
+    
     // Invalidate categories cache on delete
     invalidateCache("/categories");
     
     await prisma.category.delete({
-      where: { id: Number(req.params.id) },
+      where: { id: categoryId },
     });
     res.json({ message: "Category deleted successfully" });
   } catch (error) {
+    // Handle Prisma foreign key constraint error
+    if (error.code === "P2003") {
+      return res.status(400).json({ 
+        message: "Cannot delete category. It is still being used by products. Please delete or reassign the products first." 
+      });
+    }
     res.status(500).json({ error: error.message });
   }
 });

@@ -120,6 +120,35 @@ router.put("/:id", verifyToken, upload.single("image"), async (req, res) => {
   }
 });
 
+// Update order for multiple banners (Admin only)
+router.post("/reorder", verifyToken, async (req, res) => {
+  try {
+    const { items } = req.body; // Array of { id, order }
+    
+    if (!Array.isArray(items)) {
+      return res.status(400).json({ message: "Items must be an array" });
+    }
+
+    // Invalidate banners cache
+    invalidateCache("/banners");
+
+    // Update all banners in a transaction
+    await prisma.$transaction(
+      items.map((item) =>
+        prisma.banner.update({
+          where: { id: Number(item.id) },
+          data: { order: Number(item.order) },
+        })
+      )
+    );
+
+    res.json({ message: "Order updated successfully" });
+  } catch (error) {
+    console.error("Reorder banners error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Delete banner (Admin only)
 router.delete("/:id", verifyToken, async (req, res) => {
   try {

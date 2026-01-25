@@ -86,7 +86,7 @@ router.get("/", cacheMiddleware(5 * 60 * 1000), async (req, res) => {
     const queryBase = {
       where,
       include,
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ order: "asc" }, { createdAt: "desc" }],
     };
 
     let products = [];
@@ -311,6 +311,35 @@ router.put("/:id", verifyToken, upload.array("images", 10), async (req, res) => 
     });
   } catch (error) {
     console.error("Update product error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update order for multiple products (Admin only)
+router.post("/reorder", verifyToken, async (req, res) => {
+  try {
+    const { items } = req.body; // Array of { id, order }
+    
+    if (!Array.isArray(items)) {
+      return res.status(400).json({ message: "Items must be an array" });
+    }
+
+    // Invalidate products cache
+    invalidateCache("/products");
+
+    // Update all products in a transaction
+    await prisma.$transaction(
+      items.map((item) =>
+        prisma.product.update({
+          where: { id: Number(item.id) },
+          data: { order: Number(item.order) },
+        })
+      )
+    );
+
+    res.json({ message: "Order updated successfully" });
+  } catch (error) {
+    console.error("Reorder products error:", error);
     res.status(500).json({ error: error.message });
   }
 });

@@ -85,6 +85,22 @@ export const uploadVideo = multer({
   },
 });
 
+// Combined upload for video and image (for reels: video + thumbnail)
+export const uploadReelFiles = multer({
+  storage: storage,
+  limits: {
+    fileSize: 50 * 1024 * 1024, // 50MB max (for videos)
+  },
+  fileFilter: (req, file, cb) => {
+    // Accept both video and image files
+    if (file.mimetype.startsWith("video/") || file.mimetype.startsWith("image/")) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only video and image files are allowed"), false);
+    }
+  },
+});
+
 // Helper function to upload to Cloudinary
 export const uploadToCloudinary = async (filePath) => {
   if (!cloudinaryConfig) {
