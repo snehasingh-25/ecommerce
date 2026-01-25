@@ -2,10 +2,11 @@ import express from "express";
 import { verifyToken } from "../utils/auth.js";
 import upload, { getImageUrl } from "../utils/upload.js";
 import prisma from "../prisma.js";
+import { cacheMiddleware, invalidateCache } from "../utils/cache.js";
 const router = express.Router();
 
-// Get all products (public)
-router.get("/", async (req, res) => {
+// Get all products (public) - Cached for 5 minutes
+router.get("/", cacheMiddleware(5 * 60 * 1000), async (req, res) => {
   try {
     const { category, occasion, isNew, isFestival, isTrending, search } = req.query;
     const limitRaw = req.query.limit;
@@ -120,8 +121,8 @@ router.get("/", async (req, res) => {
   }
 });
 
-// Get single product (public)
-router.get("/:id", async (req, res) => {
+// Get single product (public) - Cached for 5 minutes
+router.get("/:id", cacheMiddleware(5 * 60 * 1000), async (req, res) => {
   try {
     const product = await prisma.product.findUnique({
       where: { id: Number(req.params.id) },
@@ -154,6 +155,9 @@ router.get("/:id", async (req, res) => {
 // Add product (Admin only)
 router.post("/", verifyToken, upload.array("images", 10), async (req, res) => {
   try {
+    // Invalidate products cache on create
+    invalidateCache("/products");
+    
     const { name, description, badge, isFestival, isNew, isTrending, categoryId, sizes, keywords, occasionIds } = req.body;
 
     // Upload images
@@ -223,6 +227,9 @@ router.post("/", verifyToken, upload.array("images", 10), async (req, res) => {
 // Update product (Admin only)
 router.put("/:id", verifyToken, upload.array("images", 10), async (req, res) => {
   try {
+    // Invalidate products cache on update
+    invalidateCache("/products");
+    
     const { name, description, badge, isFestival, isNew, isTrending, categoryId, sizes, keywords, existingImages, occasionIds } = req.body;
 
     const existingProduct = await prisma.product.findUnique({
@@ -311,6 +318,9 @@ router.put("/:id", verifyToken, upload.array("images", 10), async (req, res) => 
 // Delete product (Admin only)
 router.delete("/:id", verifyToken, async (req, res) => {
   try {
+    // Invalidate products cache on delete
+    invalidateCache("/products");
+    
     await prisma.product.delete({
       where: { id: Number(req.params.id) },
     });

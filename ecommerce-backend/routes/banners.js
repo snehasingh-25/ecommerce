@@ -2,10 +2,11 @@ import express from "express";
 import { verifyToken } from "../utils/auth.js";
 import upload, { getImageUrl } from "../utils/upload.js";
 import prisma from "../prisma.js";
+import { cacheMiddleware, invalidateCache } from "../utils/cache.js";
 const router = express.Router();
 
-// Get all active banners (public)
-router.get("/", async (req, res) => {
+// Get all active banners (public) - Cached for 5 minutes
+router.get("/", cacheMiddleware(5 * 60 * 1000), async (req, res) => {
   try {
     const banners = await prisma.banner.findMany({
       where: { isActive: true },
@@ -51,6 +52,9 @@ router.get("/:id", verifyToken, async (req, res) => {
 // Create banner (Admin only)
 router.post("/", verifyToken, upload.single("image"), async (req, res) => {
   try {
+    // Invalidate banners cache on create
+    invalidateCache("/banners");
+    
     const { title, subtitle, ctaText, ctaLink, isActive, order } = req.body;
 
     if (!req.file) {
@@ -119,6 +123,9 @@ router.put("/:id", verifyToken, upload.single("image"), async (req, res) => {
 // Delete banner (Admin only)
 router.delete("/:id", verifyToken, async (req, res) => {
   try {
+    // Invalidate banners cache on delete
+    invalidateCache("/banners");
+    
     await prisma.banner.delete({
       where: { id: Number(req.params.id) },
     });

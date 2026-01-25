@@ -2,10 +2,11 @@ import express from "express";
 import { verifyToken } from "../utils/auth.js";
 import upload, { getImageUrl } from "../utils/upload.js";
 import prisma from "../prisma.js";
+import { cacheMiddleware, invalidateCache } from "../utils/cache.js";
 const router = express.Router();
 
-// Get all occasions (public)
-router.get("/", async (req, res) => {
+// Get all occasions (public) - Cached for 5 minutes
+router.get("/", cacheMiddleware(5 * 60 * 1000), async (req, res) => {
   try {
     const occasions = await prisma.occasion.findMany({
       where: { isActive: true },
@@ -41,8 +42,8 @@ router.get("/all", verifyToken, async (req, res) => {
   }
 });
 
-// Get single occasion (public)
-router.get("/:slug", async (req, res) => {
+// Get single occasion (public) - Cached for 5 minutes
+router.get("/:slug", cacheMiddleware(5 * 60 * 1000), async (req, res) => {
   try {
     const occasion = await prisma.occasion.findUnique({
       where: { slug: req.params.slug },
@@ -89,6 +90,9 @@ router.get("/:slug", async (req, res) => {
 // Create occasion (Admin only)
 router.post("/", verifyToken, upload.single("image"), async (req, res) => {
   try {
+    // Invalidate occasions cache on create
+    invalidateCache("/occasions");
+    
     const { name, slug, description, isActive } = req.body;
 
     let imageUrl = null;
@@ -116,6 +120,9 @@ router.post("/", verifyToken, upload.single("image"), async (req, res) => {
 // Update occasion (Admin only)
 router.put("/:id", verifyToken, upload.single("image"), async (req, res) => {
   try {
+    // Invalidate occasions cache on update
+    invalidateCache("/occasions");
+    
     const { name, slug, description, isActive, existingImage } = req.body;
 
     const existingOccasion = await prisma.occasion.findUnique({
@@ -152,6 +159,9 @@ router.put("/:id", verifyToken, upload.single("image"), async (req, res) => {
 // Delete occasion (Admin only)
 router.delete("/:id", verifyToken, async (req, res) => {
   try {
+    // Invalidate occasions cache on delete
+    invalidateCache("/occasions");
+    
     await prisma.occasion.delete({
       where: { id: Number(req.params.id) },
     });

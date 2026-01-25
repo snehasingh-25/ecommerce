@@ -2,10 +2,11 @@ import express from "express";
 import { verifyToken } from "../utils/auth.js";
 import upload, { getImageUrl } from "../utils/upload.js";
 import prisma from "../prisma.js";
+import { cacheMiddleware, invalidateCache } from "../utils/cache.js";
 const router = express.Router();
 
-// Get all categories (public)
-router.get("/", async (req, res) => {
+// Get all categories (public) - Cached for 5 minutes
+router.get("/", cacheMiddleware(5 * 60 * 1000), async (req, res) => {
   try {
     const categories = await prisma.category.findMany({
       include: {
@@ -42,6 +43,9 @@ router.get("/:id", async (req, res) => {
 // Create category (Admin only)
 router.post("/", verifyToken, upload.single("image"), async (req, res) => {
   try {
+    // Invalidate categories cache on create
+    invalidateCache("/categories");
+    
     const { name, slug, description, order } = req.body;
     
     let imageUrl = null;
@@ -70,6 +74,9 @@ router.post("/", verifyToken, upload.single("image"), async (req, res) => {
 // Update category (Admin only)
 router.put("/:id", verifyToken, upload.single("image"), async (req, res) => {
   try {
+    // Invalidate categories cache on update
+    invalidateCache("/categories");
+    
     const { name, slug, description, existingImageUrl, order } = req.body;
     
     let imageUrl = existingImageUrl || null;
@@ -99,6 +106,9 @@ router.put("/:id", verifyToken, upload.single("image"), async (req, res) => {
 // Delete category (Admin only)
 router.delete("/:id", verifyToken, async (req, res) => {
   try {
+    // Invalidate categories cache on delete
+    invalidateCache("/categories");
+    
     await prisma.category.delete({
       where: { id: Number(req.params.id) },
     });

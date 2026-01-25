@@ -13,6 +13,7 @@ import cartRoutes from "./routes/cart.js";
 import reelRoutes from "./routes/reels.js";
 import occasionRoutes from "./routes/occasions.js";
 import bannerRoutes from "./routes/banners.js";
+import cache from "./utils/cache.js";
 
 dotenv.config();
 
@@ -47,6 +48,11 @@ app.get("/", (req, res) => {
   res.send("Backend is alive 🌱");
 });
 
+// Cache stats endpoint (for monitoring)
+app.get("/cache/stats", (req, res) => {
+  res.json(cache.getStats());
+});
+
 app.use("/products", productRoutes);
 app.use("/categories", categoryRoutes);
 app.use("/orders", orderRoutes);
@@ -64,6 +70,7 @@ const server = app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log("HTTP keep-alive: Enabled");
   console.log("Prisma connection pooling: Enabled (singleton pattern)");
+  console.log("Backend caching: Enabled (5min TTL for products, categories, occasions, banners, reels)");
 });
 
 // Enable keep-alive on the server

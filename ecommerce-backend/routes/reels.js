@@ -1,10 +1,11 @@
 import express from "express";
 import { verifyToken } from "../utils/auth.js";
 import prisma from "../prisma.js";
+import { cacheMiddleware, invalidateCache } from "../utils/cache.js";
 const router = express.Router();
 
-// Get all active reels (public)
-router.get("/", async (req, res) => {
+// Get all active reels (public) - Cached for 5 minutes
+router.get("/", cacheMiddleware(5 * 60 * 1000), async (req, res) => {
   try {
     const reels = await prisma.reel.findMany({
       where: { isActive: true },
@@ -41,6 +42,9 @@ router.get("/all", verifyToken, async (req, res) => {
 // Create reel (Admin only)
 router.post("/", verifyToken, async (req, res) => {
   try {
+    // Invalidate reels cache on create
+    invalidateCache("/reels");
+    
     const { title, url, videoUrl, thumbnail, platform, isActive, order, productId, isTrending, discountPct } = req.body;
 
     const reel = await prisma.reel.create({
@@ -67,6 +71,9 @@ router.post("/", verifyToken, async (req, res) => {
 // Update reel (Admin only)
 router.put("/:id", verifyToken, async (req, res) => {
   try {
+    // Invalidate reels cache on update
+    invalidateCache("/reels");
+    
     const { title, url, videoUrl, thumbnail, platform, isActive, order, productId, isTrending, discountPct } = req.body;
 
     const updateData = {};
@@ -116,6 +123,9 @@ router.post("/:id/view", async (req, res) => {
 // Delete reel (Admin only)
 router.delete("/:id", verifyToken, async (req, res) => {
   try {
+    // Invalidate reels cache on delete
+    invalidateCache("/reels");
+    
     await prisma.reel.delete({
       where: { id: Number(req.params.id) },
     });
