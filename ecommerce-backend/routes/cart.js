@@ -1,8 +1,5 @@
 import express from "express";
-import pkg from "@prisma/client";
-
-const { PrismaClient } = pkg;
-const prisma = new PrismaClient();
+import prisma from "../prisma.js";
 const router = express.Router();
 
 // Get cart items details (public) - for syncing cart with product data
