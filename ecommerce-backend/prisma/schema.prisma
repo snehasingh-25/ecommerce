@@ -16,39 +16,40 @@ model User {
 }
 
 model Category {
-  id          Int       @id @default(autoincrement())
+  id          Int              @id @default(autoincrement())
   name        String
-  slug        String    @unique
-  description String?   @db.Text
-  imageUrl    String?   @db.Text
-  order       Int       @default(0)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  products    Product[]
+  slug        String           @unique
+  description String?          @db.Text
+  imageUrl    String?          @db.Text
+  order       Int              @default(0)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  products    ProductCategory[]
 
   @@index([order])
 }
 
 model Product {
-  id          Int            @id @default(autoincrement())
-  name        String
-  description String         @db.Text
-  badge       String?
-  isFestival  Boolean        @default(false)
-  isNew       Boolean        @default(false)
-  isTrending  Boolean        @default(false)
-  categoryId  Int
-  images      String         @db.Text // JSON array of image URLs
-  keywords    String         @db.Text // JSON array for multilingual search
-  order       Int            @default(0) // For ordering products
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
+  id            Int            @id @default(autoincrement())
+  name          String
+  description   String         @db.Text
+  badge         String?
+  isFestival    Boolean        @default(false)
+  isNew         Boolean        @default(false)
+  isTrending    Boolean        @default(false)
+  hasSinglePrice Boolean       @default(false) // If true, use singlePrice instead of sizes
+  singlePrice   Float?         // Price for products without size variants
+  images        String         @db.Text // JSON array of image URLs
+  keywords      String         @db.Text // JSON array for multilingual search
+  order         Int            @default(0) // For ordering products
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 
-  category    Category       @relation(fields: [categoryId], references: [id])
-  sizes       ProductSize[]
-  orderItems  OrderItem[]
-  occasions   ProductOccasion[]
-  reels       Reel[]
+  categories    ProductCategory[]
+  sizes         ProductSize[]
+  orderItems    OrderItem[]
+  occasions     ProductOccasion[]
+  reels         Reel[]
 
   @@index([createdAt])
   @@index([isTrending, createdAt])
@@ -140,9 +141,23 @@ model Occasion {
   description String?          @db.Text
   imageUrl    String?          @db.Text
   isActive    Boolean          @default(true)
+  order       Int              @default(0) // For ordering occasions
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
   products    ProductOccasion[]
+
+  @@index([order])
+}
+
+model ProductCategory {
+  id         Int      @id @default(autoincrement())
+  productId  Int
+  categoryId Int
+
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, categoryId])
 }
 
 model ProductOccasion {
@@ -163,8 +178,11 @@ model Banner {
   imageUrl    String    @db.Text
   ctaText     String?   // Call-to-action button text
   ctaLink     String?   @db.Text // Call-to-action link URL
+  bannerType  String    @default("primary") // "primary" or "secondary"
   isActive    Boolean   @default(true)
   order       Int       @default(0) // For ordering banners
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+
+  @@index([bannerType, order])
 }

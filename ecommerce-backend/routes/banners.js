@@ -8,8 +8,14 @@ const router = express.Router();
 // Get all active banners (public) - Cached for 5 minutes
 router.get("/", cacheMiddleware(5 * 60 * 1000), async (req, res) => {
   try {
+    const { type } = req.query; // Optional filter: "primary" or "secondary"
+    const where = { isActive: true };
+    if (type) {
+      where.bannerType = type;
+    }
+    
     const banners = await prisma.banner.findMany({
-      where: { isActive: true },
+      where,
       orderBy: { order: "asc" },
     });
 
@@ -55,7 +61,7 @@ router.post("/", verifyToken, upload.single("image"), async (req, res) => {
     // Invalidate banners cache on create
     invalidateCache("/banners");
     
-    const { title, subtitle, ctaText, ctaLink, isActive, order } = req.body;
+    const { title, subtitle, ctaText, ctaLink, bannerType, isActive, order } = req.body;
 
     if (!req.file) {
       return res.status(400).json({ error: "Image is required" });
@@ -70,6 +76,7 @@ router.post("/", verifyToken, upload.single("image"), async (req, res) => {
         imageUrl,
         ctaText: ctaText || null,
         ctaLink: ctaLink || null,
+        bannerType: bannerType || "primary",
         isActive: isActive === "true" || isActive === true,
         order: order ? Number(order) : 0,
       },
@@ -85,7 +92,7 @@ router.post("/", verifyToken, upload.single("image"), async (req, res) => {
 // Update banner (Admin only)
 router.put("/:id", verifyToken, upload.single("image"), async (req, res) => {
   try {
-    const { title, subtitle, ctaText, ctaLink, isActive, order, existingImage } = req.body;
+    const { title, subtitle, ctaText, ctaLink, bannerType, isActive, order, existingImage } = req.body;
 
     const existingBanner = await prisma.banner.findUnique({
       where: { id: Number(req.params.id) },
@@ -108,6 +115,7 @@ router.put("/:id", verifyToken, upload.single("image"), async (req, res) => {
         imageUrl,
         ctaText: ctaText || null,
         ctaLink: ctaLink || null,
+        bannerType: bannerType || "primary",
         isActive: isActive === "true" || isActive === true,
         order: order ? Number(order) : 0,
       },

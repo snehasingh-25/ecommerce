@@ -15,7 +15,14 @@ router.post("/sync", async (req, res) => {
     const productIds = [...new Set(items.map(item => item.productId))];
     const products = await prisma.product.findMany({
       where: { id: { in: productIds } },
-      include: { sizes: true, category: true },
+      include: {
+        sizes: true,
+        categories: {
+          include: {
+            category: true,
+          }
+        },
+      },
     });
 
     // Map products by ID for quick lookup

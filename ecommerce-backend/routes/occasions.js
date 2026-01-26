@@ -15,7 +15,7 @@ router.get("/", cacheMiddleware(5 * 60 * 1000), async (req, res) => {
           select: { products: true }
         }
       },
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ order: "asc" }, { createdAt: "desc" }],
     });
 
     res.json(occasions);
@@ -33,7 +33,7 @@ router.get("/all", verifyToken, async (req, res) => {
           select: { products: true }
         }
       },
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ order: "asc" }, { createdAt: "desc" }],
     });
 
     res.json(occasions);
@@ -53,7 +53,11 @@ router.get("/:slug", cacheMiddleware(5 * 60 * 1000), async (req, res) => {
             product: {
               include: {
                 sizes: true,
-                category: true,
+                categories: {
+                  include: {
+                    category: true,
+                  }
+                },
               }
             }
           }
@@ -75,6 +79,7 @@ router.get("/:slug", cacheMiddleware(5 * 60 * 1000), async (req, res) => {
         ...p,
         images: p.images ? JSON.parse(p.images) : [],
         keywords: p.keywords ? JSON.parse(p.keywords) : [],
+        categories: p.categories ? p.categories.map(pc => pc.category) : [],
       };
     });
 
@@ -169,6 +174,35 @@ router.delete("/:id", verifyToken, async (req, res) => {
     res.json({ message: "Occasion deleted successfully" });
   } catch (error) {
     console.error("Delete occasion error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update order for multiple occasions (Admin only)
+router.post("/reorder", verifyToken, async (req, res) => {
+  try {
+    const { items } = req.body; // Array of { id, order }
+    
+    if (!Array.isArray(items)) {
+      return res.status(400).json({ message: "Items must be an array" });
+    }
+
+    // Invalidate occasions cache
+    invalidateCache("/occasions");
+
+    // Update all occasions in a transaction
+    await prisma.$transaction(
+      items.map((item) =>
+        prisma.occasion.update({
+          where: { id: Number(item.id) },
+          data: { order: Number(item.order) },
+        })
+      )
+    );
+
+    res.json({ message: "Order updated successfully" });
+  } catch (error) {
+    console.error("Reorder occasions error:", error);
     res.status(500).json({ error: error.message });
   }
 });

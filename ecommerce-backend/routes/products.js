@@ -17,7 +17,13 @@ router.get("/", cacheMiddleware(5 * 60 * 1000), async (req, res) => {
     // Build where clause
     const where = {};
     if (category) {
-      where.category = { slug: category };
+      where.categories = {
+        some: {
+          category: {
+            slug: category
+          }
+        }
+      };
     }
     if (occasion) {
       where.occasions = {
@@ -75,7 +81,11 @@ router.get("/", cacheMiddleware(5 * 60 * 1000), async (req, res) => {
 
     const include = {
       sizes: true,
-      category: true,
+      categories: {
+        include: {
+          category: true,
+        },
+      },
       occasions: {
         include: {
           occasion: true,
@@ -112,6 +122,7 @@ router.get("/", cacheMiddleware(5 * 60 * 1000), async (req, res) => {
       ...p,
       images: p.images ? JSON.parse(p.images) : [],
       keywords: p.keywords ? JSON.parse(p.keywords) : [],
+      categories: p.categories ? p.categories.map(pc => pc.category) : [],
       occasions: p.occasions ? p.occasions.map(po => po.occasion) : [],
     }));
 
@@ -128,7 +139,11 @@ router.get("/:id", cacheMiddleware(5 * 60 * 1000), async (req, res) => {
       where: { id: Number(req.params.id) },
       include: { 
         sizes: true,
-        category: true,
+        categories: {
+          include: {
+            category: true
+          }
+        },
         occasions: {
           include: {
             occasion: true
@@ -145,6 +160,7 @@ router.get("/:id", cacheMiddleware(5 * 60 * 1000), async (req, res) => {
       ...product,
       images: product.images ? JSON.parse(product.images) : [],
       keywords: product.keywords ? JSON.parse(product.keywords) : [],
+      categories: product.categories ? product.categories.map(pc => pc.category) : [],
       occasions: product.occasions ? product.occasions.map(po => po.occasion) : [],
     });
   } catch (error) {
@@ -158,7 +174,7 @@ router.post("/", verifyToken, upload.array("images", 10), async (req, res) => {
     // Invalidate products cache on create
     invalidateCache("/products");
     
-    const { name, description, badge, isFestival, isNew, isTrending, categoryId, sizes, keywords, occasionIds } = req.body;
+    const { name, description, badge, isFestival, isNew, isTrending, hasSinglePrice, singlePrice, categoryIds, sizes, keywords, occasionIds } = req.body;
 
     // Upload images
     const imageUrls = [];
@@ -179,7 +195,8 @@ router.post("/", verifyToken, upload.array("images", 10), async (req, res) => {
       price: parseFloat(size.price) || 0,
     }));
 
-    // Parse occasion IDs
+    // Parse category and occasion IDs
+    const categoryIdsArray = categoryIds ? JSON.parse(categoryIds) : [];
     const occasionIdsArray = occasionIds ? JSON.parse(occasionIds) : [];
 
     const product = await prisma.product.create({
@@ -190,9 +207,15 @@ router.post("/", verifyToken, upload.array("images", 10), async (req, res) => {
         isFestival: isFestival === "true" || isFestival === true,
         isNew: isNew === "true" || isNew === true,
         isTrending: isTrending === "true" || isTrending === true,
-        categoryId: Number(categoryId),
+        hasSinglePrice: hasSinglePrice === "true" || hasSinglePrice === true,
+        singlePrice: hasSinglePrice === "true" || hasSinglePrice === true ? (singlePrice ? parseFloat(singlePrice) : null) : null,
         images: JSON.stringify(imageUrls),
         keywords: JSON.stringify(keywordsArray),
+        categories: {
+          create: categoryIdsArray.map(categoryId => ({
+            categoryId: Number(categoryId)
+          }))
+        },
         sizes: {
           create: sizesWithFloatPrices,
         },
@@ -204,6 +227,11 @@ router.post("/", verifyToken, upload.array("images", 10), async (req, res) => {
       },
       include: { 
         sizes: true,
+        categories: {
+          include: {
+            category: true
+          }
+        },
         occasions: {
           include: {
             occasion: true
@@ -230,7 +258,7 @@ router.put("/:id", verifyToken, upload.array("images", 10), async (req, res) => 
     // Invalidate products cache on update
     invalidateCache("/products");
     
-    const { name, description, badge, isFestival, isNew, isTrending, categoryId, sizes, keywords, existingImages, occasionIds } = req.body;
+    const { name, description, badge, isFestival, isNew, isTrending, hasSinglePrice, singlePrice, categoryIds, sizes, keywords, existingImages, occasionIds } = req.body;
 
     const existingProduct = await prisma.product.findUnique({
       where: { id: Number(req.params.id) },
@@ -264,12 +292,18 @@ router.put("/:id", verifyToken, upload.array("images", 10), async (req, res) => 
       where: { productId: Number(req.params.id) },
     });
 
+    // Delete old category links
+    await prisma.productCategory.deleteMany({
+      where: { productId: Number(req.params.id) },
+    });
+
     // Delete old occasion links
     await prisma.productOccasion.deleteMany({
       where: { productId: Number(req.params.id) },
     });
 
-    // Parse occasion IDs
+    // Parse category and occasion IDs
+    const categoryIdsArray = categoryIds ? JSON.parse(categoryIds) : [];
     const occasionIdsArray = occasionIds ? JSON.parse(occasionIds) : [];
 
     const product = await prisma.product.update({
@@ -281,9 +315,15 @@ router.put("/:id", verifyToken, upload.array("images", 10), async (req, res) => 
         isFestival: isFestival === "true" || isFestival === true,
         isNew: isNew === "true" || isNew === true,
         isTrending: isTrending === "true" || isTrending === true,
-        categoryId: Number(categoryId),
+        hasSinglePrice: hasSinglePrice === "true" || hasSinglePrice === true,
+        singlePrice: hasSinglePrice === "true" || hasSinglePrice === true ? (singlePrice ? parseFloat(singlePrice) : null) : null,
         images: JSON.stringify(imageUrls),
         keywords: JSON.stringify(keywordsArray),
+        categories: {
+          create: categoryIdsArray.map(categoryId => ({
+            categoryId: Number(categoryId)
+          }))
+        },
         sizes: {
           create: sizesWithFloatPrices,
         },
@@ -295,6 +335,11 @@ router.put("/:id", verifyToken, upload.array("images", 10), async (req, res) => 
       },
       include: { 
         sizes: true,
+        categories: {
+          include: {
+            category: true
+          }
+        },
         occasions: {
           include: {
             occasion: true
@@ -307,6 +352,7 @@ router.put("/:id", verifyToken, upload.array("images", 10), async (req, res) => 
       ...product,
       images: imageUrls,
       keywords: keywordsArray,
+      categories: product.categories ? product.categories.map(pc => pc.category) : [],
       occasions: product.occasions ? product.occasions.map(po => po.occasion) : [],
     });
   } catch (error) {

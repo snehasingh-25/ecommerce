@@ -13,7 +13,14 @@ router.get("/", cacheMiddleware(5 * 60 * 1000), async (req, res) => {
       orderBy: { order: "asc" },
       include: {
         product: {
-          include: { sizes: true, category: true },
+          include: {
+            sizes: true,
+            categories: {
+              include: {
+                category: true,
+              }
+            },
+          },
         },
       },
     });
@@ -30,7 +37,14 @@ router.get("/all", verifyToken, async (req, res) => {
       orderBy: [{ order: "asc" }, { createdAt: "desc" }],
       include: {
         product: {
-          include: { sizes: true, category: true },
+          include: {
+            sizes: true,
+            categories: {
+              include: {
+                category: true,
+              }
+            },
+          },
         },
       },
     });
