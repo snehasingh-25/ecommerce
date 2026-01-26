@@ -15,7 +15,18 @@ import occasionRoutes from "./routes/occasions.js";
 import bannerRoutes from "./routes/banners.js";
 import cache from "./utils/cache.js";
 
+// Log startup information
+console.log("=== Server Startup ===");
+console.log("Node version:", process.version);
+console.log("Current directory:", process.cwd());
+
 dotenv.config();
+
+console.log("Environment variables loaded");
+console.log("PORT:", process.env.PORT || "3000 (default)");
+console.log("HOST:", process.env.HOST || "0.0.0.0 (default)");
+console.log("DATABASE_URL:", process.env.DATABASE_URL ? "Set ✓" : "NOT SET ✗");
+console.log("NODE_ENV:", process.env.NODE_ENV || "development");
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -173,22 +184,33 @@ process.on("uncaughtException", (error) => {
 // Create HTTP server with keep-alive enabled
 let server;
 try {
+  console.log(`Attempting to start server on ${HOST}:${PORT}...`);
   server = app.listen(PORT, HOST, () => {
-    console.log(`Server running on ${HOST}:${PORT}`);
-    console.log("HTTP keep-alive: Enabled");
-    console.log("Prisma connection pooling: Enabled (singleton pattern)");
-    console.log("Backend caching: Enabled (5min TTL for products, categories, occasions, banners, reels)");
-    console.log("Environment:", process.env.NODE_ENV || "development");
+    console.log("=== Server Started Successfully ===");
+    console.log(`✓ Server running on ${HOST}:${PORT}`);
+    console.log("✓ HTTP keep-alive: Enabled");
+    console.log("✓ Prisma connection pooling: Enabled (singleton pattern)");
+    console.log("✓ Backend caching: Enabled (5min TTL for products, categories, occasions, banners, reels)");
+    console.log("✓ Environment:", process.env.NODE_ENV || "development");
+    console.log("=== Ready to accept requests ===");
   });
 
   server.on("error", (error) => {
-    console.error("Server error:", error);
+    console.error("=== Server Error ===");
+    console.error("Error code:", error.code);
+    console.error("Error message:", error.message);
     if (error.code === "EADDRINUSE") {
-      console.error(`Port ${PORT} is already in use`);
+      console.error(`✗ Port ${PORT} is already in use`);
+      console.error("Please stop the process using this port or change the PORT environment variable");
+    } else {
+      console.error("Full error:", error);
     }
+    process.exit(1);
   });
 } catch (error) {
-  console.error("Failed to start server:", error);
+  console.error("=== Failed to Start Server ===");
+  console.error("Error:", error);
+  console.error("Stack:", error.stack);
   process.exit(1);
 }
 
