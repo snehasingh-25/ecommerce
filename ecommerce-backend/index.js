@@ -25,16 +25,17 @@ const app = express();
 app.use(
   cors({
     origin: [
+      "http://localhost:5173",
       "https://giftchoice.net",
       "https://www.giftchoice.net"
     ],
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-    credentials: true
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    allowedHeaders: ["Content-Type", "Authorization"]
   })
 );
 
-app.options("*", cors());
+
+
 
 
 // Enable HTTP keep-alive for connection pooling
