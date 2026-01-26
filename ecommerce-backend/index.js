@@ -70,6 +70,19 @@ app.get("/", (req, res) => {
   res.send("Backend is alive 🌱");
 });
 
+// Simple test endpoint (no database required)
+app.get("/test", (req, res) => {
+  res.json({ 
+    message: "Server is responding",
+    timestamp: new Date().toISOString(),
+    env: {
+      nodeEnv: process.env.NODE_ENV,
+      port: process.env.PORT || 3000,
+      hasDatabaseUrl: !!process.env.DATABASE_URL
+    }
+  });
+});
+
 // Cache stats endpoint (for monitoring)
 app.get("/cache/stats", (req, res) => {
   res.json(cache.getStats());
@@ -117,6 +130,20 @@ app.use((err, req, res, next) => {
     timestamp: new Date().toISOString()
   });
   
+  // Ensure CORS headers are set even on errors
+  const origin = req.headers.origin;
+  const allowedOrigins = [
+    "http://localhost:5173",
+    "https://giftchoice.net",
+    "https://www.giftchoice.net",
+    "https://midnightblue-fish-476058.hostingersite.com"
+  ];
+  
+  if (origin && allowedOrigins.includes(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+  }
+  
   res.status(err.status || 500).json({
     error: err.message || "Internal server error",
     ...(process.env.NODE_ENV === "development" && { stack: err.stack })
@@ -131,13 +158,39 @@ app.use((req, res) => {
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || "0.0.0.0"; // Listen on all interfaces for production
 
-// Create HTTP server with keep-alive enabled
-const server = app.listen(PORT, HOST, () => {
-  console.log(`Server running on ${HOST}:${PORT}`);
-  console.log("HTTP keep-alive: Enabled");
-  console.log("Prisma connection pooling: Enabled (singleton pattern)");
-  console.log("Backend caching: Enabled (5min TTL for products, categories, occasions, banners, reels)");
+// Handle unhandled promise rejections
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("Unhandled Rejection at:", promise, "reason:", reason);
+  // Don't exit the process, just log it
 });
+
+// Handle uncaught exceptions
+process.on("uncaughtException", (error) => {
+  console.error("Uncaught Exception:", error);
+  // Don't exit immediately, let the server try to handle it
+});
+
+// Create HTTP server with keep-alive enabled
+let server;
+try {
+  server = app.listen(PORT, HOST, () => {
+    console.log(`Server running on ${HOST}:${PORT}`);
+    console.log("HTTP keep-alive: Enabled");
+    console.log("Prisma connection pooling: Enabled (singleton pattern)");
+    console.log("Backend caching: Enabled (5min TTL for products, categories, occasions, banners, reels)");
+    console.log("Environment:", process.env.NODE_ENV || "development");
+  });
+
+  server.on("error", (error) => {
+    console.error("Server error:", error);
+    if (error.code === "EADDRINUSE") {
+      console.error(`Port ${PORT} is already in use`);
+    }
+  });
+} catch (error) {
+  console.error("Failed to start server:", error);
+  process.exit(1);
+}
 
 // Enable keep-alive on the server
 server.keepAliveTimeout = 65000; // 65 seconds
