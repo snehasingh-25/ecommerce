@@ -83,13 +83,20 @@ app.get("/", (req, res) => {
 
 // Simple test endpoint (no database required)
 app.get("/test", (req, res) => {
+  const serverInfo = req.socket?.server?.address();
   res.json({ 
     message: "Server is responding",
     timestamp: new Date().toISOString(),
     env: {
       nodeEnv: process.env.NODE_ENV,
       port: process.env.PORT || 3000,
+      host: process.env.HOST || "0.0.0.0",
       hasDatabaseUrl: !!process.env.DATABASE_URL
+    },
+    server: {
+      actualPort: serverInfo?.port,
+      actualAddress: serverInfo?.address,
+      family: serverInfo?.family
     }
   });
 });
@@ -186,8 +193,12 @@ let server;
 try {
   console.log(`Attempting to start server on ${HOST}:${PORT}...`);
   server = app.listen(PORT, HOST, () => {
+    const actualPort = server.address().port;
+    const actualAddress = server.address().address;
     console.log("=== Server Started Successfully ===");
     console.log(`✓ Server running on ${HOST}:${PORT}`);
+    console.log(`✓ Actual listening address: ${actualAddress}:${actualPort}`);
+    console.log(`✓ Environment PORT variable: ${process.env.PORT || 'not set (using default 3000)'}`);
     console.log("✓ HTTP keep-alive: Enabled");
     console.log("✓ Prisma connection pooling: Enabled (singleton pattern)");
     console.log("✓ Backend caching: Enabled (5min TTL for products, categories, occasions, banners, reels)");

@@ -4,6 +4,8 @@ import ProductCard from "../components/ProductCard";
 import { Link } from "react-router-dom";
 import BannerSlider from "../components/BannerSlider";
 import { MemoReelCarousel as ReelCarousel } from "../components/ReelCarousel";
+import GiftBoxLoader from "../components/GiftBoxLoader";
+import { useProductLoader } from "../hooks/useProductLoader";
 
 // Loading spinner component
 const LoadingSpinner = ({ size = "md" }) => {
@@ -53,6 +55,10 @@ export default function Home() {
   });
   const scrollRef = useRef(null);
   const occasionScrollRef = useRef(null);
+  
+  // Time-based loader for products (only shows if loading >= 1 second)
+  const isProductsLoading = loading.products;
+  const { showLoader: showProductLoader } = useProductLoader(isProductsLoading);
 
   useEffect(() => {
     const ac = new AbortController();
@@ -160,6 +166,11 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-white fade-in">
+      {/* Gift Box Loading Animation - Only shows if loading takes >= 1 second */}
+      <GiftBoxLoader 
+        isLoading={isProductsLoading} 
+        showLoader={showProductLoader}
+      />
       {/* Hero Section - Shows immediately on initial load */}
       {isInitialLoad && (
         <div className="relative w-full overflow-hidden h-[300px] sm:h-[400px] lg:h-[500px]">
