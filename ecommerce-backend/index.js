@@ -48,6 +48,12 @@ app.set("headersTimeout", 66000); // 66 seconds (must be > keepAliveTimeout)
 
 app.use(express.json());
 
+// Request logging middleware (for debugging)
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+  next();
+});
+
 // Serve uploaded files
 app.use(
   "/uploads",
@@ -69,6 +75,28 @@ app.get("/cache/stats", (req, res) => {
   res.json(cache.getStats());
 });
 
+// Health check endpoint with database connection test
+app.get("/health", async (req, res) => {
+  try {
+    const prisma = (await import("./prisma.js")).default;
+    // Test database connection
+    await prisma.$queryRaw`SELECT 1`;
+    res.json({ 
+      status: "healthy", 
+      database: "connected",
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error("Health check failed:", error);
+    res.status(503).json({ 
+      status: "unhealthy", 
+      database: "disconnected",
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 app.use("/products", productRoutes);
 app.use("/categories", categoryRoutes);
 app.use("/orders", orderRoutes);
@@ -78,6 +106,27 @@ app.use("/cart", cartRoutes);
 app.use("/reels", reelRoutes);
 app.use("/occasions", occasionRoutes);
 app.use("/banners", bannerRoutes);
+
+// Global error handling middleware (must be after all routes)
+app.use((err, req, res, next) => {
+  console.error("Unhandled error:", {
+    message: err.message,
+    stack: err.stack,
+    path: req.path,
+    method: req.method,
+    timestamp: new Date().toISOString()
+  });
+  
+  res.status(err.status || 500).json({
+    error: err.message || "Internal server error",
+    ...(process.env.NODE_ENV === "development" && { stack: err.stack })
+  });
+});
+
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({ error: "Route not found" });
+});
 
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || "0.0.0.0"; // Listen on all interfaces for production
