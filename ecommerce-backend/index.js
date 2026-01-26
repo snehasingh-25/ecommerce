@@ -22,13 +22,26 @@ const __dirname = dirname(__filename);
 
 const app = express();
 
+app.use(
+  cors({
+    origin: [
+      "https://giftchoice.net",
+      "https://www.giftchoice.net"
+    ],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true
+  })
+);
+
+app.options("*", cors());
+
+
 // Enable HTTP keep-alive for connection pooling
 app.set("keepAliveTimeout", 65000); // 65 seconds
 app.set("headersTimeout", 66000); // 66 seconds (must be > keepAliveTimeout)
 
 // CORS configuration
-app.use(cors({
-}));
 
 app.use(express.json());
 
