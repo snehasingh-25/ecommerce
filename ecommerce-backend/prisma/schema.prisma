@@ -37,6 +37,7 @@ model Product {
   isFestival    Boolean        @default(false)
   isNew         Boolean        @default(false)
   isTrending    Boolean        @default(false)
+  isReady60Min  Boolean        @default(false) // 60 minutes ready/delivery option
   hasSinglePrice Boolean       @default(false) // If true, use singlePrice instead of sizes
   singlePrice   Float?         // Price for products without size variants
   images        String         @db.Text // JSON array of image URLs

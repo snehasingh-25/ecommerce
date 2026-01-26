@@ -174,7 +174,7 @@ router.post("/", verifyToken, upload.array("images", 10), async (req, res) => {
     // Invalidate products cache on create
     invalidateCache("/products");
     
-    const { name, description, badge, isFestival, isNew, isTrending, hasSinglePrice, singlePrice, categoryIds, sizes, keywords, occasionIds } = req.body;
+    const { name, description, badge, isFestival, isNew, isTrending, isReady60Min, hasSinglePrice, singlePrice, categoryIds, sizes, keywords, occasionIds } = req.body;
 
     // Upload images
     const imageUrls = [];
@@ -207,6 +207,7 @@ router.post("/", verifyToken, upload.array("images", 10), async (req, res) => {
         isFestival: isFestival === "true" || isFestival === true,
         isNew: isNew === "true" || isNew === true,
         isTrending: isTrending === "true" || isTrending === true,
+        isReady60Min: isReady60Min === "true" || isReady60Min === true,
         hasSinglePrice: hasSinglePrice === "true" || hasSinglePrice === true,
         singlePrice: hasSinglePrice === "true" || hasSinglePrice === true ? (singlePrice ? parseFloat(singlePrice) : null) : null,
         images: JSON.stringify(imageUrls),
@@ -258,7 +259,7 @@ router.put("/:id", verifyToken, upload.array("images", 10), async (req, res) => 
     // Invalidate products cache on update
     invalidateCache("/products");
     
-    const { name, description, badge, isFestival, isNew, isTrending, hasSinglePrice, singlePrice, categoryIds, sizes, keywords, existingImages, occasionIds } = req.body;
+    const { name, description, badge, isFestival, isNew, isTrending, isReady60Min, hasSinglePrice, singlePrice, categoryIds, sizes, keywords, existingImages, occasionIds } = req.body;
 
     const existingProduct = await prisma.product.findUnique({
       where: { id: Number(req.params.id) },
@@ -315,6 +316,7 @@ router.put("/:id", verifyToken, upload.array("images", 10), async (req, res) => 
         isFestival: isFestival === "true" || isFestival === true,
         isNew: isNew === "true" || isNew === true,
         isTrending: isTrending === "true" || isTrending === true,
+        isReady60Min: isReady60Min === "true" || isReady60Min === true,
         hasSinglePrice: hasSinglePrice === "true" || hasSinglePrice === true,
         singlePrice: hasSinglePrice === "true" || hasSinglePrice === true ? (singlePrice ? parseFloat(singlePrice) : null) : null,
         images: JSON.stringify(imageUrls),
