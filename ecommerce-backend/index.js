@@ -27,10 +27,12 @@ app.use(
     origin: [
       "http://localhost:5173",
       "https://giftchoice.net",
-      "https://www.giftchoice.net"
+      "https://www.giftchoice.net",
+      "https://midnightblue-fish-476058.hostingersite.com"
     ],
-    methods: ["GET", "POST", "PUT", "DELETE"],
-    allowedHeaders: ["Content-Type", "Authorization"]
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true
   })
 );
 
@@ -78,10 +80,11 @@ app.use("/occasions", occasionRoutes);
 app.use("/banners", bannerRoutes);
 
 const PORT = process.env.PORT || 3000;
+const HOST = process.env.HOST || "0.0.0.0"; // Listen on all interfaces for production
 
 // Create HTTP server with keep-alive enabled
-const server = app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+const server = app.listen(PORT, HOST, () => {
+  console.log(`Server running on ${HOST}:${PORT}`);
   console.log("HTTP keep-alive: Enabled");
   console.log("Prisma connection pooling: Enabled (singleton pattern)");
   console.log("Backend caching: Enabled (5min TTL for products, categories, occasions, banners, reels)");
