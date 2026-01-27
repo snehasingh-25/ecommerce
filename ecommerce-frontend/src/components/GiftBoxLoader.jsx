@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
 /**
- * GiftBoxLoader - Animated loading screen that only shows if loading takes >= 1 second
+ * GiftBoxLoader - Animated loading screen that only shows if loading takes >= 0.1 seconds
  * 
  * @param {boolean} isLoading - Whether data is currently loading
  * @param {boolean} showLoader - Whether to show the loader (controlled by time-based logic)
@@ -9,18 +9,18 @@ import { useEffect, useState } from "react";
  */
 export default function GiftBoxLoader({ isLoading, showLoader, onComplete }) {
   const [animationPhase, setAnimationPhase] = useState("loading"); // loading, bursting, fading
-  const [shouldRender, setShouldRender] = useState(showLoader);
+  // Show immediately if loading or if showLoader is true
+  const [shouldRender, setShouldRender] = useState(isLoading || showLoader);
 
   useEffect(() => {
-    if (!showLoader) {
-      setShouldRender(false);
+    // Always show when loading
+    if (isLoading) {
+      setShouldRender(true);
+      setAnimationPhase("loading");
       return;
     }
 
-    setShouldRender(true);
-    setAnimationPhase("loading");
-
-    // When loading completes, trigger burst animation
+    // When loading completes and showLoader is true, trigger burst animation
     if (!isLoading && showLoader) {
       setAnimationPhase("bursting");
       
@@ -39,17 +39,23 @@ export default function GiftBoxLoader({ isLoading, showLoader, onComplete }) {
       
       return () => clearTimeout(fadeTimer);
     }
+
+    // If not loading and showLoader is false, hide immediately
+    if (!isLoading && !showLoader) {
+      setShouldRender(false);
+    }
   }, [isLoading, showLoader, onComplete]);
 
   if (!shouldRender) return null;
 
   return (
     <div 
-      className={`fixed inset-0 z-50 flex items-center justify-center bg-white transition-opacity duration-500 ${
+      className={`fixed inset-0 z-[9999] flex items-center justify-center bg-white transition-opacity duration-500 ${
         animationPhase === "fading" ? "opacity-0" : "opacity-100"
       }`}
       style={{ 
-        pointerEvents: animationPhase === "fading" ? "none" : "auto"
+        pointerEvents: animationPhase === "fading" ? "none" : "auto",
+        zIndex: 9999
       }}
     >
       <div className="relative">
@@ -169,12 +175,12 @@ export default function GiftBoxLoader({ isLoading, showLoader, onComplete }) {
                   
                   {/* Gift Icon Emerging */}
                   <div 
-                    className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-6xl animate-gift-emerge"
+                    className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-sm animate-gift-emerge"
                     style={{
                       filter: "drop-shadow(0 4px 8px rgba(0,0,0,0.3))"
                     }}
                   >
-                    🎁
+                    Gift Choice
                   </div>
                 </>
               )}

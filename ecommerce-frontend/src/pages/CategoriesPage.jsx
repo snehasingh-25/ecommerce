@@ -149,15 +149,17 @@ export default function CategoriesPage() {
     });
   };
 
+  // Time-based loader for initial categories load
+  const { showLoader: showInitialLoader } = useProductLoader(loading && !selectedCategory);
+  
   if (loading && !selectedCategory) {
-    // Initial load - show simple spinner
     return (
-      <div className="min-h-screen bg-white py-16 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading categories...</p>
-        </div>
-      </div>
+      <>
+        <GiftBoxLoader 
+          isLoading={loading && !selectedCategory} 
+          showLoader={showInitialLoader}
+        />
+      </>
     );
   }
 
