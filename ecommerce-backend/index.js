@@ -13,6 +13,7 @@ import cartRoutes from "./routes/cart.js";
 import reelRoutes from "./routes/reels.js";
 import occasionRoutes from "./routes/occasions.js";
 import bannerRoutes from "./routes/banners.js";
+import recommendationRoutes from "./routes/recommendations.js";
 import cache from "./utils/cache.js";
 
 // Log startup information
@@ -137,6 +138,7 @@ app.use("/cart", cartRoutes);
 app.use("/reels", reelRoutes);
 app.use("/occasions", occasionRoutes);
 app.use("/banners", bannerRoutes);
+app.use("/recommendations", recommendationRoutes);
 
 // Global error handling middleware (must be after all routes)
 app.use((err, req, res, next) => {
