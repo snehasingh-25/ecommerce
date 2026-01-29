@@ -1,6 +1,6 @@
 import express from "express";
 import { verifyToken } from "../utils/auth.js";
-import upload, { getImageUrl } from "../utils/upload.js";
+import { uploadProductMedia, getImageUrl, getVideoUrl } from "../utils/upload.js";
 import prisma from "../prisma.js";
 import { cacheMiddleware, invalidateCache } from "../utils/cache.js";
 const router = express.Router();
@@ -121,6 +121,7 @@ router.get("/", cacheMiddleware(5 * 60 * 1000), async (req, res) => {
     const parsed = products.map(p => ({
       ...p,
       images: p.images ? JSON.parse(p.images) : [],
+      videos: p.videos ? JSON.parse(p.videos) : [],
       keywords: p.keywords ? JSON.parse(p.keywords) : [],
       categories: p.categories ? p.categories.map(pc => pc.category) : [],
       occasions: p.occasions ? p.occasions.map(po => po.occasion) : [],
@@ -159,6 +160,7 @@ router.get("/:id", cacheMiddleware(5 * 60 * 1000), async (req, res) => {
     res.json({
       ...product,
       images: product.images ? JSON.parse(product.images) : [],
+      videos: product.videos ? JSON.parse(product.videos) : [],
       keywords: product.keywords ? JSON.parse(product.keywords) : [],
       categories: product.categories ? product.categories.map(pc => pc.category) : [],
       occasions: product.occasions ? product.occasions.map(po => po.occasion) : [],
@@ -169,30 +171,49 @@ router.get("/:id", cacheMiddleware(5 * 60 * 1000), async (req, res) => {
 });
 
 // Add product (Admin only)
-router.post("/", verifyToken, upload.array("images", 10), async (req, res) => {
+router.post("/", verifyToken, uploadProductMedia, async (req, res) => {
   try {
     // Invalidate products cache on create
     invalidateCache("/products");
     
-    const { name, description, badge, isFestival, isNew, isTrending, isReady60Min, hasSinglePrice, singlePrice, categoryIds, sizes, keywords, occasionIds } = req.body;
+    const { name, description, badge, isFestival, isNew, isTrending, isReady60Min, hasSinglePrice, singlePrice, originalPrice, categoryIds, sizes, keywords, occasionIds, existingImages, existingVideos } = req.body;
 
-    // Upload images
-    const imageUrls = [];
-    if (req.files && req.files.length > 0) {
-      for (const file of req.files) {
-        const url = await getImageUrl(file);
-        imageUrls.push(url);
-      }
+    // Upload images; for duplicate/create, existingImages can provide initial URLs
+    let imageUrls = [];
+    if (existingImages) {
+      try {
+        const parsed = typeof existingImages === "string" ? JSON.parse(existingImages) : existingImages;
+        if (Array.isArray(parsed)) imageUrls = parsed;
+      } catch (_) {}
+    }
+    const imageFiles = req.files?.images || [];
+    for (const file of imageFiles) {
+      const url = await getImageUrl(file);
+      imageUrls.push(url);
+    }
+    // Upload videos; existingVideos can provide initial URLs (e.g. duplicate)
+    let videoUrls = [];
+    if (existingVideos) {
+      try {
+        const parsed = typeof existingVideos === "string" ? JSON.parse(existingVideos) : existingVideos;
+        if (Array.isArray(parsed)) videoUrls = parsed;
+      } catch (_) {}
+    }
+    const videoFiles = req.files?.videos || [];
+    for (const file of videoFiles) {
+      const url = await getVideoUrl(file);
+      videoUrls.push(url);
     }
 
     // Parse sizes and keywords
     const sizesArray = sizes ? JSON.parse(sizes) : [];
     const keywordsArray = keywords ? JSON.parse(keywords) : [];
 
-    // Convert price strings to floats for sizes
+    // Convert price strings to floats for sizes; support originalPrice (MRP)
     const sizesWithFloatPrices = sizesArray.map(size => ({
       label: size.label,
       price: parseFloat(size.price) || 0,
+      originalPrice: size.originalPrice != null && size.originalPrice !== "" ? parseFloat(size.originalPrice) : null,
     }));
 
     // Parse category and occasion IDs
@@ -210,7 +231,9 @@ router.post("/", verifyToken, upload.array("images", 10), async (req, res) => {
         isReady60Min: isReady60Min === "true" || isReady60Min === true,
         hasSinglePrice: hasSinglePrice === "true" || hasSinglePrice === true,
         singlePrice: hasSinglePrice === "true" || hasSinglePrice === true ? (singlePrice ? parseFloat(singlePrice) : null) : null,
+        originalPrice: originalPrice != null && originalPrice !== "" ? parseFloat(originalPrice) : null,
         images: JSON.stringify(imageUrls),
+        videos: videoUrls.length > 0 ? JSON.stringify(videoUrls) : null,
         keywords: JSON.stringify(keywordsArray),
         categories: {
           create: categoryIdsArray.map(categoryId => ({
@@ -226,7 +249,7 @@ router.post("/", verifyToken, upload.array("images", 10), async (req, res) => {
           }))
         }
       },
-      include: { 
+      include: {
         sizes: true,
         categories: {
           include: {
@@ -244,6 +267,7 @@ router.post("/", verifyToken, upload.array("images", 10), async (req, res) => {
     res.json({
       ...product,
       images: imageUrls,
+      videos: videoUrls,
       keywords: keywordsArray,
       occasions: product.occasions ? product.occasions.map(po => po.occasion) : [],
     });
@@ -254,12 +278,12 @@ router.post("/", verifyToken, upload.array("images", 10), async (req, res) => {
 });
 
 // Update product (Admin only)
-router.put("/:id", verifyToken, upload.array("images", 10), async (req, res) => {
+router.put("/:id", verifyToken, uploadProductMedia, async (req, res) => {
   try {
     // Invalidate products cache on update
     invalidateCache("/products");
     
-    const { name, description, badge, isFestival, isNew, isTrending, isReady60Min, hasSinglePrice, singlePrice, categoryIds, sizes, keywords, existingImages, occasionIds } = req.body;
+    const { name, description, badge, isFestival, isNew, isTrending, isReady60Min, hasSinglePrice, singlePrice, originalPrice, categoryIds, sizes, keywords, existingImages, existingVideos, occasionIds } = req.body;
 
     const existingProduct = await prisma.product.findUnique({
       where: { id: Number(req.params.id) },
@@ -271,21 +295,28 @@ router.put("/:id", verifyToken, upload.array("images", 10), async (req, res) => 
 
     // Handle images
     let imageUrls = existingImages ? JSON.parse(existingImages) : [];
-    if (req.files && req.files.length > 0) {
-      for (const file of req.files) {
-        const url = await getImageUrl(file);
-        imageUrls.push(url);
-      }
+    const imageFiles = req.files?.images || [];
+    for (const file of imageFiles) {
+      const url = await getImageUrl(file);
+      imageUrls.push(url);
+    }
+    // Handle videos
+    let videoUrls = existingVideos ? JSON.parse(existingVideos) : [];
+    const videoFiles = req.files?.videos || [];
+    for (const file of videoFiles) {
+      const url = await getVideoUrl(file);
+      videoUrls.push(url);
     }
 
     // Parse sizes and keywords
     const sizesArray = sizes ? JSON.parse(sizes) : [];
     const keywordsArray = keywords ? JSON.parse(keywords) : [];
 
-    // Convert price strings to floats for sizes
+    // Convert price strings to floats for sizes; support originalPrice (MRP)
     const sizesWithFloatPrices = sizesArray.map(size => ({
       label: size.label,
       price: parseFloat(size.price) || 0,
+      originalPrice: size.originalPrice != null && size.originalPrice !== "" ? parseFloat(size.originalPrice) : null,
     }));
 
     // Delete old sizes and create new ones
@@ -319,7 +350,9 @@ router.put("/:id", verifyToken, upload.array("images", 10), async (req, res) => 
         isReady60Min: isReady60Min === "true" || isReady60Min === true,
         hasSinglePrice: hasSinglePrice === "true" || hasSinglePrice === true,
         singlePrice: hasSinglePrice === "true" || hasSinglePrice === true ? (singlePrice ? parseFloat(singlePrice) : null) : null,
+        originalPrice: originalPrice != null && originalPrice !== "" ? parseFloat(originalPrice) : null,
         images: JSON.stringify(imageUrls),
+        videos: videoUrls.length > 0 ? JSON.stringify(videoUrls) : null,
         keywords: JSON.stringify(keywordsArray),
         categories: {
           create: categoryIdsArray.map(categoryId => ({
@@ -335,7 +368,7 @@ router.put("/:id", verifyToken, upload.array("images", 10), async (req, res) => 
           }))
         }
       },
-      include: { 
+      include: {
         sizes: true,
         categories: {
           include: {
@@ -353,6 +386,7 @@ router.put("/:id", verifyToken, upload.array("images", 10), async (req, res) => 
     res.json({
       ...product,
       images: imageUrls,
+      videos: videoUrls,
       keywords: keywordsArray,
       categories: product.categories ? product.categories.map(pc => pc.category) : [],
       occasions: product.occasions ? product.occasions.map(po => po.occasion) : [],

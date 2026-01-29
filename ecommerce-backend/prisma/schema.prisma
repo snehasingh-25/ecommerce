@@ -39,8 +39,10 @@ model Product {
   isTrending    Boolean        @default(false)
   isReady60Min  Boolean        @default(false) // 60 minutes ready/delivery option
   hasSinglePrice Boolean       @default(false) // If true, use singlePrice instead of sizes
-  singlePrice   Float?         // Price for products without size variants
+  singlePrice   Float?         // Selling price for products without size variants
+  originalPrice Float?         // MRP / list price for single-price products (strikethrough on frontend)
   images        String         @db.Text // JSON array of image URLs
+  videos        String?        @db.Text // JSON array of video URLs (optional)
   keywords      String         @db.Text // JSON array for multilingual search
   order         Int            @default(0) // For ordering products
   createdAt     DateTime       @default(now())
@@ -60,12 +62,23 @@ model Product {
 }
 
 model ProductSize {
-  id        Int     @id @default(autoincrement())
-  label     String
-  price     Float
-  productId Int
+  id            Int     @id @default(autoincrement())
+  label         String
+  price         Float   // Selling price
+  originalPrice Float?  // MRP / list price (strikethrough on frontend)
+  productId    Int
 
   product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+// Reusable size options (e.g. S, M, L, 250gm, 500gm) for admin checkbox list
+model SizeOption {
+  id        Int      @id @default(autoincrement())
+  label     String   @unique
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([order])
 }
 
 model Order {

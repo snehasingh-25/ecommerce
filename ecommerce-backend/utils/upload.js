@@ -101,6 +101,24 @@ export const uploadReelFiles = multer({
   },
 });
 
+// Product media: images (field "images") + videos (field "videos")
+export const uploadProductMedia = multer({
+  storage: storage,
+  limits: {
+    fileSize: 50 * 1024 * 1024, // 50MB for videos
+  },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith("video/") || file.mimetype.startsWith("image/")) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only video and image files are allowed"), false);
+    }
+  },
+}).fields([
+  { name: "images", maxCount: 10 },
+  { name: "videos", maxCount: 5 },
+]);
+
 // Helper function to upload to Cloudinary
 export const uploadToCloudinary = async (filePath) => {
   if (!cloudinaryConfig) {
