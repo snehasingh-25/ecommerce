@@ -1,48 +1,39 @@
 import express from "express";
-import OpenAI from "openai";
+// import OpenAI from "openai";
+import { GoogleGenAI } from "@google/genai";
 import prisma from "../prisma.js";
 
 const router = express.Router();
 
-const GIFT_BUDDY_SYSTEM_PROMPT = `You are Gift Buddy 🤝🎁, a friendly, cheerful, and intelligent Gift Shopping Assistant for an online gift shop website.
+const GIFT_BUDDY_SYSTEM_PROMPT = `You are Gift Buddy 🤝🎁, a friendly and helpful Gift Shopping Assistant for an online gift shop.
 
-Your mission is to help customers quickly and happily find the perfect gift by understanding:
-- Occasion
-- Recipient
-- Budget
-- Quantity (single or bulk)
+Your job: help customers find the perfect gift (occasion, recipient, budget, quantity). Be like a real, friendly advisor—not a robot.
 
-You must behave like a real human gift advisor, not a robot.
-
-TONE & STYLE: Warm, friendly, festive. Short, clear, easy to read. Helpful, never pushy. Emotion-focused. Use emojis sparingly 🎁😊. Never sound robotic or salesy.
+LANGUAGE & TONE (IMPORTANT):
+- Reply ONLY in Hinglish (natural mix of Hindi + English). Example: "Achha choice hai! Ye gifts dekh lo 🎁" or "Budget ke hisaab se ye options best hain."
+- Keep your "message" SHORT: 1–3 sentences max. No long paragraphs. Friendly, warm, casual.
+- Use emojis sparingly (🎁 😊 👍). Never sound robotic or salesy.
 
 GIFT SUGGESTION RULES (CRITICAL):
-- Suggest ONLY 2–4 products maximum. Never show more than 4.
-- Every suggestion must include: Gift name, Why it's a good gift (emotion or use-case), Price range, CTA: "View Gift" or "Add to Cart"
-- Use ONLY products from the LIVE_PRODUCT_DATA provided. Never invent products or prices.
-- If a product is marked out of stock, never suggest it.
-- Match intent using product names, categories, descriptions, occasions, and common gifting use-cases.
+- Suggest ONLY 2–4 products. Use ONLY products from LIVE_PRODUCT_DATA. Never invent products or prices.
+- Every suggestion: gift name, why it's good, price range. Match occasion/budget from the user.
+- If out of stock: "Ye abhi out of stock hai 😕 Par similar options dikhata hoon."
 
-BUDGET INTELLIGENCE: Always respect user budget. If no exact match exists, suggest slightly higher or lower options and explain politely.
+LINKS (IMPORTANT): Product cards with clickable "View" / "Add" links are shown BELOW your message automatically. So:
+- NEVER say "main direct link nahi de sakta", "search karo", "product IDs de raha hoon website par search karo", or "link nahi de sakta". That is wrong—links are already there in the cards below.
+- Instead say: "Neeche in gifts pe click karke dekh lo! 😊" or "In options pe View/Add pe click karo." so user knows the cards below are clickable. Do NOT mention product IDs or "search" in your reply.
 
-CATEGORY-AWARE: If user asks for a category, suggest products only from that category. You may suggest closely related categories.
+BUDGET: Respect user budget. No exact match? Suggest nearby options in 1 short line.
 
-IF PRODUCT UNAVAILABLE: "This gift is currently out of stock 😕 But I can show you similar and equally beautiful options."
+RESPONSE FORMAT (JSON only): Reply with exactly this JSON, nothing else:
+{"message": "Your short Hinglish reply here", "productIds": [id1, id2, ...]}
 
-IF DATA UNAVAILABLE: "I'm syncing the latest gifts right now 😊 Meanwhile, you can chat with me directly on WhatsApp for quick help 🎁"
-
-TRUST & SALES: Never over-promise. Be honest. Focus on customer happiness.
-
-RESPONSE FORMAT (JSON only): Reply with exactly this JSON structure, nothing else:
-{"message": "Your conversational reply here", "productIds": [id1, id2, ...]}
-
-- "message": Your full reply to the user (can include product names and descriptions).
-- "productIds": Array of product IDs (numbers) you are suggesting. Use IDs from LIVE_PRODUCT_DATA only. Empty array [] if no products suggested.
-- Suggest 2-4 products max when recommending gifts.`;
+- "message": Short, friendly reply in Hinglish (1–3 sentences).
+- "productIds": Product IDs from LIVE_PRODUCT_DATA only. Max 2–4. Empty [] if no products.
+- Be honest, helpful, and keep it brief.`;
 
 function buildProductContext(products, categories, occasions) {
   const items = products.map((p) => {
-    const imgs = Array.isArray(p.images) ? p.images : [];
     const cats = (p.categories || []).map((c) => c.name || c).join(", ");
     const occs = (p.occasions || []).map((o) => o.name || o).join(", ");
     let priceStr = "";
@@ -78,14 +69,7 @@ function buildWelcomeContext(categories, occasions) {
 
 router.post("/", async (req, res) => {
   try {
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey || apiKey.trim() === "") {
-      return res.status(400).json({
-        error: "OPENAI_API_KEY is not configured. Add it in your server environment variables.",
-      });
-    }
-
-    const { messages = [], isNewChat } = req.body;
+    const { messages = [] } = req.body;
     if (!Array.isArray(messages) || messages.length === 0) {
       return res.status(400).json({ error: "messages array is required" });
     }
@@ -130,57 +114,113 @@ AVAILABLE_CATEGORIES: ${JSON.stringify(welcomeContext.categories)}
 AVAILABLE_OCCASIONS: ${JSON.stringify(welcomeContext.occasions)}
 `;
 
-    const openai = new OpenAI({ apiKey });
-    const apiMessages = [
-      { role: "system", content: systemContent },
-      ...messages.map((m) => ({
-        role: m.role === "user" || m.role === "assistant" ? m.role : "user",
-        content: String(m.content || ""),
-      })),
-    ];
-
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: apiMessages,
-      max_tokens: 600,
-      temperature: 0.7,
-      response_format: { type: "json_object" },
-    });
-
-    const raw = completion.choices[0]?.message?.content?.trim();
-    if (!raw) {
-      return res.status(502).json({ error: "No response from assistant." });
+    // --- Gemini / Gemma (Gemma does not support systemInstruction; pass as first user message, then full history) ---
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (apiKey && apiKey.trim() !== "") {
+      const ai = new GoogleGenAI({ apiKey });
+      const history = messages.map((m) => ({
+        role: m.role === "assistant" ? "model" : "user",
+        parts: [{ text: String(m.content || "") }],
+      }));
+      const contents = [
+        { role: "user", parts: [{ text: `${systemContent}\n\n---\n\nYou must reply with ONLY valid JSON: {"message": "your reply", "productIds": [id1, id2, ...]}. No other text. Now here is the conversation:\n\n(Continue below.)` }] },
+        { role: "model", parts: [{ text: '{"message": "Ready!", "productIds": []}' }] },
+        ...history,
+      ];
+      const response = await ai.models.generateContent({
+        model: "gemma-3-12b-it",
+        contents,
+        config: {
+          maxOutputTokens: 400,
+          temperature: 0.7,
+        },
+      });
+      const raw = response.text?.trim();
+      if (!raw) {
+        return res.status(502).json({ error: "No response from assistant." });
+      }
+      let parsed;
+      try {
+        parsed = JSON.parse(raw);
+      } catch {
+        return res.json({ message: raw, products: [] });
+      }
+      const productIds = Array.isArray(parsed.productIds) ? parsed.productIds : [];
+      const suggested = products.filter((p) => productIds.includes(p.id)).slice(0, 4);
+      const productPayload = suggested.map((p) => ({
+        id: p.id,
+        name: p.name,
+        description: (p.description || "").slice(0, 200),
+        images: p.images || [],
+        hasSinglePrice: p.hasSinglePrice,
+        singlePrice: p.singlePrice,
+        originalPrice: p.originalPrice,
+        sizes: (p.sizes || []).map((s) => ({ id: s.id, label: s.label, price: s.price, originalPrice: s.originalPrice })),
+        categories: (p.categories || []).map((c) => ({ id: c?.id, name: c?.name })),
+        occasions: (p.occasions || []).map((o) => ({ id: o?.id, name: o?.name })),
+        badge: p.badge,
+        isTrending: p.isTrending,
+        isNew: p.isNew,
+      }));
+      return res.json({
+        message: parsed.message || raw,
+        products: productPayload,
+      });
     }
 
-    let parsed;
-    try {
-      parsed = JSON.parse(raw);
-    } catch {
-      return res.json({ message: raw, products: [] });
-    }
+    // --- OpenAI (commented out – uncomment and set OPENAI_API_KEY to use) ---
+    // const openaiKey = process.env.OPENAI_API_KEY;
+    // if (openaiKey && openaiKey.trim() !== "") {
+    //   const openai = new OpenAI({ apiKey: openaiKey });
+    //   const apiMessages = [
+    //     { role: "system", content: systemContent },
+    //     ...messages.map((m) => ({
+    //       role: m.role === "user" || m.role === "assistant" ? m.role : "user",
+    //       content: String(m.content || ""),
+    //     })),
+    //   ];
+    //   const completion = await openai.chat.completions.create({
+    //     model: "gpt-4o-mini",
+    //     messages: apiMessages,
+    //     max_tokens: 600,
+    //     temperature: 0.7,
+    //     response_format: { type: "json_object" },
+    //   });
+    //   const raw = completion.choices[0]?.message?.content?.trim();
+    //   if (!raw) {
+    //     return res.status(502).json({ error: "No response from assistant." });
+    //   }
+    //   let parsed;
+    //   try {
+    //     parsed = JSON.parse(raw);
+    //   } catch {
+    //     return res.json({ message: raw, products: [] });
+    //   }
+    //   const productIds = Array.isArray(parsed.productIds) ? parsed.productIds : [];
+    //   const suggested = products.filter((p) => productIds.includes(p.id)).slice(0, 4);
+    //   const productPayload = suggested.map((p) => ({
+    //     id: p.id,
+    //     name: p.name,
+    //     description: (p.description || "").slice(0, 200),
+    //     images: p.images || [],
+    //     hasSinglePrice: p.hasSinglePrice,
+    //     singlePrice: p.singlePrice,
+    //     originalPrice: p.originalPrice,
+    //     sizes: (p.sizes || []).map((s) => ({ id: s.id, label: s.label, price: s.price, originalPrice: s.originalPrice })),
+    //     categories: (p.categories || []).map((c) => ({ id: c?.id, name: c?.name })),
+    //     occasions: (p.occasions || []).map((o) => ({ id: o?.id, name: o?.name })),
+    //     badge: p.badge,
+    //     isTrending: p.isTrending,
+    //     isNew: p.isNew,
+    //   }));
+    //   return res.json({
+    //     message: parsed.message || raw,
+    //     products: productPayload,
+    //   });
+    // }
 
-    const productIds = Array.isArray(parsed.productIds) ? parsed.productIds : [];
-    const suggested = products.filter((p) => productIds.includes(p.id)).slice(0, 4);
-
-    const productPayload = suggested.map((p) => ({
-      id: p.id,
-      name: p.name,
-      description: (p.description || "").slice(0, 200),
-      images: p.images || [],
-      hasSinglePrice: p.hasSinglePrice,
-      singlePrice: p.singlePrice,
-      originalPrice: p.originalPrice,
-      sizes: (p.sizes || []).map((s) => ({ id: s.id, label: s.label, price: s.price, originalPrice: s.originalPrice })),
-      categories: (p.categories || []).map((c) => ({ id: c?.id, name: c?.name })),
-      occasions: (p.occasions || []).map((o) => ({ id: o?.id, name: o?.name })),
-      badge: p.badge,
-      isTrending: p.isTrending,
-      isNew: p.isNew,
-    }));
-
-    return res.json({
-      message: parsed.message || raw,
-      products: productPayload,
+    return res.status(400).json({
+      error: "GEMINI_API_KEY is not configured. Add it in your server environment variables (or use OPENAI_API_KEY by uncommenting the OpenAI block).",
     });
   } catch (err) {
     console.error("Chat error:", err);

@@ -3,6 +3,7 @@ import { verifyToken } from "../utils/auth.js";
 import { uploadProductMedia, getImageUrl, getVideoUrl } from "../utils/upload.js";
 import prisma from "../prisma.js";
 import { cacheMiddleware, invalidateCache } from "../utils/cache.js";
+import { validateInstagramEmbeds } from "../utils/instagram.js";
 const router = express.Router();
 
 // Get all products (public) - Cached for 5 minutes
@@ -161,6 +162,7 @@ router.get("/:id", cacheMiddleware(5 * 60 * 1000), async (req, res) => {
       ...product,
       images: product.images ? JSON.parse(product.images) : [],
       videos: product.videos ? JSON.parse(product.videos) : [],
+      instagramEmbeds: product.instagramEmbeds ? JSON.parse(product.instagramEmbeds) : [],
       keywords: product.keywords ? JSON.parse(product.keywords) : [],
       categories: product.categories ? product.categories.map(pc => pc.category) : [],
       occasions: product.occasions ? product.occasions.map(po => po.occasion) : [],
@@ -176,7 +178,7 @@ router.post("/", verifyToken, uploadProductMedia, async (req, res) => {
     // Invalidate products cache on create
     invalidateCache("/products");
     
-    const { name, description, badge, isFestival, isNew, isTrending, isReady60Min, hasSinglePrice, singlePrice, originalPrice, categoryIds, sizes, keywords, occasionIds, existingImages, existingVideos } = req.body;
+    const { name, description, badge, isFestival, isNew, isTrending, isReady60Min, hasSinglePrice, singlePrice, originalPrice, categoryIds, sizes, keywords, occasionIds, existingImages, existingVideos, instagramEmbeds } = req.body;
 
     // Upload images; for duplicate/create, existingImages can provide initial URLs
     let imageUrls = [];
@@ -205,9 +207,11 @@ router.post("/", verifyToken, uploadProductMedia, async (req, res) => {
       videoUrls.push(url);
     }
 
-    // Parse sizes and keywords
+    // Parse sizes, keywords, and Instagram embeds
     const sizesArray = sizes ? JSON.parse(sizes) : [];
     const keywordsArray = keywords ? JSON.parse(keywords) : [];
+    const instagramEmbedsArray = instagramEmbeds ? JSON.parse(instagramEmbeds) : [];
+    const validatedInstagramEmbeds = validateInstagramEmbeds(instagramEmbedsArray);
 
     // Convert price strings to floats for sizes; support originalPrice (MRP)
     const sizesWithFloatPrices = sizesArray.map(size => ({
@@ -234,6 +238,7 @@ router.post("/", verifyToken, uploadProductMedia, async (req, res) => {
         originalPrice: originalPrice != null && originalPrice !== "" ? parseFloat(originalPrice) : null,
         images: JSON.stringify(imageUrls),
         videos: videoUrls.length > 0 ? JSON.stringify(videoUrls) : null,
+        instagramEmbeds: validatedInstagramEmbeds.length > 0 ? JSON.stringify(validatedInstagramEmbeds) : null,
         keywords: JSON.stringify(keywordsArray),
         categories: {
           create: categoryIdsArray.map(categoryId => ({
@@ -283,7 +288,7 @@ router.put("/:id", verifyToken, uploadProductMedia, async (req, res) => {
     // Invalidate products cache on update
     invalidateCache("/products");
     
-    const { name, description, badge, isFestival, isNew, isTrending, isReady60Min, hasSinglePrice, singlePrice, originalPrice, categoryIds, sizes, keywords, existingImages, existingVideos, occasionIds } = req.body;
+    const { name, description, badge, isFestival, isNew, isTrending, isReady60Min, hasSinglePrice, singlePrice, originalPrice, categoryIds, sizes, keywords, existingImages, existingVideos, instagramEmbeds, occasionIds } = req.body;
 
     const existingProduct = await prisma.product.findUnique({
       where: { id: Number(req.params.id) },
@@ -308,9 +313,11 @@ router.put("/:id", verifyToken, uploadProductMedia, async (req, res) => {
       videoUrls.push(url);
     }
 
-    // Parse sizes and keywords
+    // Parse sizes, keywords, and Instagram embeds
     const sizesArray = sizes ? JSON.parse(sizes) : [];
     const keywordsArray = keywords ? JSON.parse(keywords) : [];
+    const instagramEmbedsArray = instagramEmbeds ? JSON.parse(instagramEmbeds) : [];
+    const validatedInstagramEmbeds = validateInstagramEmbeds(instagramEmbedsArray);
 
     // Convert price strings to floats for sizes; support originalPrice (MRP)
     const sizesWithFloatPrices = sizesArray.map(size => ({
@@ -353,6 +360,7 @@ router.put("/:id", verifyToken, uploadProductMedia, async (req, res) => {
         originalPrice: originalPrice != null && originalPrice !== "" ? parseFloat(originalPrice) : null,
         images: JSON.stringify(imageUrls),
         videos: videoUrls.length > 0 ? JSON.stringify(videoUrls) : null,
+        instagramEmbeds: validatedInstagramEmbeds.length > 0 ? JSON.stringify(validatedInstagramEmbeds) : null,
         keywords: JSON.stringify(keywordsArray),
         categories: {
           create: categoryIdsArray.map(categoryId => ({
@@ -387,6 +395,7 @@ router.put("/:id", verifyToken, uploadProductMedia, async (req, res) => {
       ...product,
       images: imageUrls,
       videos: videoUrls,
+      instagramEmbeds: validatedInstagramEmbeds,
       keywords: keywordsArray,
       categories: product.categories ? product.categories.map(pc => pc.category) : [],
       occasions: product.occasions ? product.occasions.map(po => po.occasion) : [],

@@ -33,6 +33,7 @@ model Product {
   id            Int            @id @default(autoincrement())
   name          String
   description   String         @db.Text
+  aiDescription String?        @db.Text // Cached AI-generated description (avoids repeat API calls)
   badge         String?
   isFestival    Boolean        @default(false)
   isNew         Boolean        @default(false)
@@ -43,6 +44,7 @@ model Product {
   originalPrice Float?         // MRP / list price for single-price products (strikethrough on frontend)
   images        String         @db.Text // JSON array of image URLs
   videos        String?        @db.Text // JSON array of video URLs (optional)
+  instagramEmbeds String?      @db.Text // JSON array of Instagram embed objects: [{url, enabled, createdAt}]
   keywords      String         @db.Text // JSON array for multilingual search
   order         Int            @default(0) // For ordering products
   createdAt     DateTime       @default(now())
