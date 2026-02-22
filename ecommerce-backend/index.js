@@ -17,6 +17,7 @@ import recommendationRoutes from "./routes/recommendations.js";
 import sizeOptionRoutes from "./routes/size-options.js";
 import generateDescriptionRoutes from "./routes/generate-description.js";
 import chatRoutes from "./routes/chat.js";
+import instagramRoutes from "./routes/instagram.js";
 import cache from "./utils/cache.js";
 
 // Log startup information
@@ -145,6 +146,7 @@ app.use("/recommendations", recommendationRoutes);
 app.use("/size-options", sizeOptionRoutes);
 app.use("/generate-description", generateDescriptionRoutes);
 app.use("/chat", chatRoutes);
+app.use("/instagram", instagramRoutes);
 
 // Global error handling middleware (must be after all routes)
 app.use((err, req, res, next) => {

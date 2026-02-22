@@ -6,14 +6,129 @@ import { cacheMiddleware, invalidateCache } from "../utils/cache.js";
 import { validateInstagramEmbeds } from "../utils/instagram.js";
 const router = express.Router();
 
-// Get all products (public) - Cached for 5 minutes
-router.get("/", cacheMiddleware(5 * 60 * 1000), async (req, res) => {
+// Fisher-Yates shuffle algorithm for randomizing array
+function shuffleArray(array) {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
+
+// Get filter options dynamically based on available products
+router.get("/filters", cacheMiddleware(5 * 60 * 1000), async (req, res) => {
   try {
-    const { category, occasion, isNew, isFestival, isTrending, search } = req.query;
+    const { category, occasion } = req.query;
+    
+    // Build base where clause for filtering
+    const where = {};
+    if (category) {
+      where.categories = {
+        some: {
+          category: { slug: category }
+        }
+      };
+    }
+    if (occasion) {
+      where.occasions = {
+        some: {
+          occasion: { slug: occasion }
+        }
+      };
+    }
+
+    // Fetch all products with sizes for analysis
+    const products = await prisma.product.findMany({
+      where,
+      include: {
+        sizes: true,
+        categories: {
+          include: { category: true }
+        },
+        occasions: {
+          include: { occasion: true }
+        }
+      }
+    });
+
+    // Extract unique sizes
+    const sizeSet = new Set();
+    const priceValues = [];
+    
+    products.forEach(product => {
+      if (product.hasSinglePrice && product.singlePrice) {
+        priceValues.push(product.singlePrice);
+      } else if (product.sizes && product.sizes.length > 0) {
+        product.sizes.forEach(size => {
+          sizeSet.add(size.label);
+          if (size.price) priceValues.push(size.price);
+        });
+      }
+    });
+
+    // Calculate price range
+    const minPrice = priceValues.length > 0 ? Math.floor(Math.min(...priceValues)) : 0;
+    const maxPrice = priceValues.length > 0 ? Math.ceil(Math.max(...priceValues)) : 10000;
+    
+    // Get unique badges
+    const badges = [...new Set(products.map(p => p.badge).filter(Boolean))];
+
+    // Get categories and occasions
+    const categories = [...new Set(products.flatMap(p => 
+      p.categories.map(pc => ({ id: pc.category.id, name: pc.category.name, slug: pc.category.slug }))
+    ))].reduce((acc, cat) => {
+      if (!acc.find(c => c.id === cat.id)) acc.push(cat);
+      return acc;
+    }, []);
+
+    const occasions = [...new Set(products.flatMap(p => 
+      p.occasions.map(po => ({ id: po.occasion.id, name: po.occasion.name, slug: po.occasion.slug }))
+    ))].reduce((acc, occ) => {
+      if (!acc.find(o => o.id === occ.id)) acc.push(occ);
+      return acc;
+    }, []);
+
+    res.json({
+      sizes: Array.from(sizeSet).sort(),
+      priceRange: { min: minPrice, max: maxPrice },
+      badges,
+      categories,
+      occasions,
+      availability: {
+        isNew: products.some(p => p.isNew),
+        isTrending: products.some(p => p.isTrending),
+        isFestival: products.some(p => p.isFestival),
+        isReady60Min: products.some(p => p.isReady60Min)
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get all products (public) - Cached for 5 minutes (unless shuffle is enabled)
+router.get("/", (req, res, next) => {
+  // Skip caching when shuffle is enabled to ensure different order on each refresh
+  const shouldShuffle = req.query.shuffle !== "false";
+  if (shouldShuffle) {
+    return next(); // Skip cache middleware
+  }
+  return cacheMiddleware(5 * 60 * 1000)(req, res, next);
+}, async (req, res) => {
+  try {
+    const { 
+      category, occasion, isNew, isFestival, isTrending, isReady60Min, 
+      search, shuffle, sort, 
+      minPrice, maxPrice, size, badge 
+    } = req.query;
     const limitRaw = req.query.limit;
     const offsetRaw = req.query.offset;
     const limit = typeof limitRaw === "string" ? Math.min(Math.max(parseInt(limitRaw, 10) || 0, 0), 50) : 0;
     const offset = typeof offsetRaw === "string" ? Math.max(parseInt(offsetRaw, 10) || 0, 0) : 0;
+    
+    // Check if shuffle is enabled (default to true for variety)
+    const shouldShuffle = shuffle !== "false";
     
     // Build where clause
     const where = {};
@@ -43,6 +158,12 @@ router.get("/", cacheMiddleware(5 * 60 * 1000), async (req, res) => {
     }
     if (isTrending === "true") {
       where.isTrending = true;
+    }
+    if (isReady60Min === "true") {
+      where.isReady60Min = true;
+    }
+    if (badge) {
+      where.badge = badge;
     }
     if (search) {
       // First, try to find matching occasions
@@ -94,32 +215,84 @@ router.get("/", cacheMiddleware(5 * 60 * 1000), async (req, res) => {
       },
     };
 
+    // Determine sort order
+    let orderBy = [{ order: "asc" }, { createdAt: "desc" }];
+    if (sort) {
+      switch (sort) {
+        case "price_low":
+          orderBy = [{ order: "asc" }]; // Will sort by price after fetching
+          break;
+        case "price_high":
+          orderBy = [{ order: "asc" }]; // Will sort by price after fetching
+          break;
+        case "newest":
+          orderBy = [{ createdAt: "desc" }];
+          break;
+        case "popularity":
+          orderBy = [{ isTrending: "desc" }, { order: "asc" }, { createdAt: "desc" }];
+          break;
+        case "relevance":
+        default:
+          // Keep default order or shuffle
+          break;
+      }
+    }
+
     const queryBase = {
       where,
       include,
-      orderBy: [{ order: "asc" }, { createdAt: "desc" }],
+      orderBy: shouldShuffle && !sort ? undefined : orderBy,
     };
 
     let products = [];
-    if (limit > 0) {
-      const [items, total] = await prisma.$transaction([
-        prisma.product.findMany({
-          ...queryBase,
-          skip: offset,
-          take: limit,
-        }),
-        prisma.product.count({ where }),
-      ]);
-      products = items;
-      res.setHeader("X-Total-Count", String(total));
-      res.setHeader("X-Limit", String(limit));
-      res.setHeader("X-Offset", String(offset));
+    let total = 0;
+
+    // If shuffling is enabled and no sort, fetch all products first, shuffle, then paginate
+    if (shouldShuffle && !sort) {
+      // Fetch all matching products
+      const allProducts = await prisma.product.findMany({
+        where,
+        include,
+      });
+      
+      total = allProducts.length;
+      
+      // Shuffle the products randomly
+      const shuffled = shuffleArray(allProducts);
+      
+      // Apply pagination after shuffling
+      if (limit > 0) {
+        products = shuffled.slice(offset, offset + limit);
+        res.setHeader("X-Total-Count", String(total));
+        res.setHeader("X-Limit", String(limit));
+        res.setHeader("X-Offset", String(offset));
+      } else {
+        products = shuffled;
+      }
     } else {
-      products = await prisma.product.findMany(queryBase);
+      // Use original logic when shuffle is disabled or sort is specified
+      if (limit > 0) {
+        const [items, count] = await prisma.$transaction([
+          prisma.product.findMany({
+            ...queryBase,
+            skip: offset,
+            take: limit,
+          }),
+          prisma.product.count({ where }),
+        ]);
+        products = items;
+        total = count;
+        res.setHeader("X-Total-Count", String(total));
+        res.setHeader("X-Limit", String(limit));
+        res.setHeader("X-Offset", String(offset));
+      } else {
+        products = await prisma.product.findMany(queryBase);
+        total = products.length;
+      }
     }
 
     // Parse JSON fields
-    const parsed = products.map(p => ({
+    let parsed = products.map(p => ({
       ...p,
       images: p.images ? JSON.parse(p.images) : [],
       videos: p.videos ? JSON.parse(p.videos) : [],
@@ -127,6 +300,45 @@ router.get("/", cacheMiddleware(5 * 60 * 1000), async (req, res) => {
       categories: p.categories ? p.categories.map(pc => pc.category) : [],
       occasions: p.occasions ? p.occasions.map(po => po.occasion) : [],
     }));
+
+    // Apply price and size filters (after fetching)
+    if (minPrice || maxPrice || size) {
+      parsed = parsed.filter(p => {
+        // Price filter
+        if (minPrice || maxPrice) {
+          const productPrice = p.hasSinglePrice ? p.singlePrice : 
+            (p.sizes && p.sizes.length > 0 ? Math.min(...p.sizes.map(s => s.price)) : null);
+          if (productPrice === null) return false;
+          if (minPrice && productPrice < parseFloat(minPrice)) return false;
+          if (maxPrice && productPrice > parseFloat(maxPrice)) return false;
+        }
+        
+        // Size filter
+        if (size) {
+          const sizeArray = Array.isArray(size) ? size : [size];
+          if (p.hasSinglePrice) return false; // Single price products don't have sizes
+          if (!p.sizes || p.sizes.length === 0) return false;
+          const productSizes = p.sizes.map(s => s.label);
+          if (!sizeArray.some(s => productSizes.includes(s))) return false;
+        }
+        
+        return true;
+      });
+    }
+
+    // Apply price sorting (after fetching and filtering)
+    if (sort === "price_low" || sort === "price_high") {
+      parsed.sort((a, b) => {
+        const getMinPrice = (p) => {
+          if (p.hasSinglePrice && p.singlePrice) return p.singlePrice;
+          if (p.sizes && p.sizes.length > 0) return Math.min(...p.sizes.map(s => s.price));
+          return Infinity;
+        };
+        const priceA = getMinPrice(a);
+        const priceB = getMinPrice(b);
+        return sort === "price_low" ? priceA - priceB : priceB - priceA;
+      });
+    }
 
     res.json(parsed);
   } catch (error) {
