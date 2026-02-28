@@ -500,7 +500,7 @@ router.put("/:id", verifyToken, uploadProductMedia, async (req, res) => {
     // Invalidate products cache on update
     invalidateCache("/products");
     
-    const { name, description, badge, isFestival, isNew, isTrending, isReady60Min, hasSinglePrice, singlePrice, originalPrice, categoryIds, sizes, keywords, existingImages, existingVideos, instagramEmbeds, occasionIds } = req.body;
+    const { name, description, badge, isFestival, isNew, isTrending, isReady60Min, hasSinglePrice, singlePrice, originalPrice, categoryIds, sizes, keywords, existingImages, existingVideos, instagramEmbeds, occasionIds, imageOrder } = req.body;
 
     const existingProduct = await prisma.product.findUnique({
       where: { id: Number(req.params.id) },
@@ -510,12 +510,30 @@ router.put("/:id", verifyToken, uploadProductMedia, async (req, res) => {
       return res.status(404).json({ message: "Product not found" });
     }
 
-    // Handle images
-    let imageUrls = existingImages ? JSON.parse(existingImages) : [];
-    const imageFiles = req.files?.images || [];
-    for (const file of imageFiles) {
-      const url = await getImageUrl(file);
-      imageUrls.push(url);
+    // Handle images: support optional imageOrder for drag-and-drop ordering (array of URLs + "NEW" for new uploads)
+    let imageUrls = [];
+    const imageFiles = Array.isArray(req.files?.images) ? req.files.images : (req.files?.images ? [req.files.images] : []);
+    const ordered = imageOrder ? (typeof imageOrder === "string" ? JSON.parse(imageOrder) : imageOrder) : null;
+
+    if (Array.isArray(ordered) && ordered.length > 0) {
+      let fileIndex = 0;
+      for (const entry of ordered) {
+        if (entry === "NEW") {
+          if (fileIndex < imageFiles.length) {
+            const url = await getImageUrl(imageFiles[fileIndex]);
+            imageUrls.push(url);
+            fileIndex++;
+          }
+        } else if (typeof entry === "string" && entry.length > 0) {
+          imageUrls.push(entry);
+        }
+      }
+    } else {
+      imageUrls = existingImages ? JSON.parse(existingImages) : [];
+      for (const file of imageFiles) {
+        const url = await getImageUrl(file);
+        imageUrls.push(url);
+      }
     }
     // Handle videos
     let videoUrls = existingVideos ? JSON.parse(existingVideos) : [];
@@ -627,15 +645,25 @@ router.post("/reorder", verifyToken, async (req, res) => {
       return res.status(400).json({ message: "Items must be an array" });
     }
 
-    // Invalidate products cache
+    const numericId = (id) => {
+      const n = Number(id);
+      return Number.isInteger(n) && !Number.isNaN(n) ? n : null;
+    };
+    const validItems = items
+      .map((item) => ({ id: numericId(item.id), order: Number(item.order) }))
+      .filter((item) => item.id != null);
+
+    if (validItems.length === 0) {
+      return res.json({ message: "Order updated successfully" });
+    }
+
     invalidateCache("/products");
 
-    // Update all products in a transaction
     await prisma.$transaction(
-      items.map((item) =>
+      validItems.map((item) =>
         prisma.product.update({
-          where: { id: Number(item.id) },
-          data: { order: Number(item.order) },
+          where: { id: item.id },
+          data: { order: item.order },
         })
       )
     );
