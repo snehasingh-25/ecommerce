@@ -141,7 +141,9 @@ router.delete("/:id", verifyToken, async (req, res) => {
     const productsCount = await prisma.product.count({
       where: {
         categories: {
-          some: { categoryId },
+          some: {
+            categoryId: categoryId,
+          },
         },
       },
     });
