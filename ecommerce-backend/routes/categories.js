@@ -137,9 +137,13 @@ router.delete("/:id", verifyToken, async (req, res) => {
   try {
     const categoryId = Number(req.params.id);
     
-    // Check if any products are using this category
+    // Check if any products are using this category (Product–Category is many-to-many via ProductCategory)
     const productsCount = await prisma.product.count({
-      where: { categoryId },
+      where: {
+        categories: {
+          some: { categoryId },
+        },
+      },
     });
     
     if (productsCount > 0) {
