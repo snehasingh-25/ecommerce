@@ -62,7 +62,30 @@ app.set("headersTimeout", 66000); // 66 seconds (must be > keepAliveTimeout)
 
 // CORS configuration
 
-app.use(express.json());
+// Allow larger JSON payloads (e.g. product form data); multipart file size is limited by Multer and by proxy
+app.use(express.json({ limit: "100mb" }));
+
+// Handle Multer "file too large" so we return JSON with CORS headers instead of generic 413
+app.use((err, req, res, next) => {
+  if (err && err.code === "LIMIT_FILE_SIZE") {
+    const origin = req.headers.origin;
+    const allowedOrigins = [
+      "http://localhost:5173",
+      "https://giftchoice.net",
+      "https://www.giftchoice.net",
+      "https://midnightblue-fish-476058.hostingersite.com"
+    ];
+    if (origin && allowedOrigins.includes(origin)) {
+      res.setHeader("Access-Control-Allow-Origin", origin);
+      res.setHeader("Access-Control-Allow-Credentials", "true");
+    }
+    return res.status(413).json({
+      error: "File too large",
+      message: "Image or video exceeds the maximum allowed size (100MB per file). Use smaller files or compress images."
+    });
+  }
+  next(err);
+});
 
 // Request logging middleware (for debugging)
 app.use((req, res, next) => {

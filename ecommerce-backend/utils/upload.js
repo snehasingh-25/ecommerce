@@ -102,10 +102,11 @@ export const uploadReelFiles = multer({
 });
 
 // Product media: images (field "images") + videos (field "videos")
+// Max 50MB per file. Your reverse proxy (e.g. nginx) must allow this: client_max_body_size 50m;
 export const uploadProductMedia = multer({
   storage: storage,
   limits: {
-    fileSize: 50 * 1024 * 1024, // 50MB for videos
+    fileSize: 50 * 1024 * 1024, // 50MB per file (images and videos)
   },
   fileFilter: (req, file, cb) => {
     if (file.mimetype.startsWith("video/") || file.mimetype.startsWith("image/")) {
