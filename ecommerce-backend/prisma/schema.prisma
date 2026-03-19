@@ -54,6 +54,7 @@ model Product {
   sizes         ProductSize[]
   orderItems    OrderItem[]
   occasions     ProductOccasion[]
+  relations     ProductRelation[]
   reels         Reel[]
 
   @@index([createdAt])
@@ -185,6 +186,32 @@ model ProductOccasion {
   occasion   Occasion @relation(fields: [occasionId], references: [id], onDelete: Cascade)
 
   @@unique([productId, occasionId])
+}
+
+model Relation {
+  id          Int              @id @default(autoincrement())
+  name        String
+  slug        String           @unique
+  description String?          @db.Text
+  imageUrl    String?          @db.Text
+  isActive    Boolean          @default(true)
+  order       Int              @default(0)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  products    ProductRelation[]
+
+  @@index([order])
+}
+
+model ProductRelation {
+  id         Int      @id @default(autoincrement())
+  productId  Int
+  relationId Int
+
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  relation  Relation @relation(fields: [relationId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, relationId])
 }
 
 model Banner {

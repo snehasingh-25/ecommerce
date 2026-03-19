@@ -19,7 +19,7 @@ function shuffleArray(array) {
 // Get filter options dynamically based on available products
 router.get("/filters", cacheMiddleware(5 * 60 * 1000), async (req, res) => {
   try {
-    const { category, occasion } = req.query;
+    const { category, occasion, relation } = req.query;
     
     // Build base where clause for filtering
     const where = {};
@@ -37,6 +37,13 @@ router.get("/filters", cacheMiddleware(5 * 60 * 1000), async (req, res) => {
         }
       };
     }
+    if (relation) {
+      where.relations = {
+        some: {
+          relation: { slug: relation }
+        }
+      };
+    }
 
     // Fetch all products with sizes for analysis
     const products = await prisma.product.findMany({
@@ -48,6 +55,9 @@ router.get("/filters", cacheMiddleware(5 * 60 * 1000), async (req, res) => {
         },
         occasions: {
           include: { occasion: true }
+        },
+        relations: {
+          include: { relation: true }
         }
       }
     });
@@ -89,12 +99,20 @@ router.get("/filters", cacheMiddleware(5 * 60 * 1000), async (req, res) => {
       return acc;
     }, []);
 
+    const relations = [...new Set(products.flatMap(p => 
+      (p.relations || []).map(pr => ({ id: pr.relation.id, name: pr.relation.name, slug: pr.relation.slug }))
+    ))].reduce((acc, rel) => {
+      if (!acc.find(r => r.id === rel.id)) acc.push(rel);
+      return acc;
+    }, []);
+
     res.json({
       sizes: Array.from(sizeSet).sort(),
       priceRange: { min: minPrice, max: maxPrice },
       badges,
       categories,
       occasions,
+      relations,
       availability: {
         isNew: products.some(p => p.isNew),
         isTrending: products.some(p => p.isTrending),
@@ -118,7 +136,7 @@ router.get("/", (req, res, next) => {
 }, async (req, res) => {
   try {
     const { 
-      category, occasion, isNew, isFestival, isTrending, isReady60Min, 
+      category, occasion, relation, isNew, isFestival, isTrending, isReady60Min, 
       search, shuffle, sort, 
       minPrice, maxPrice, size, badge 
     } = req.query;
@@ -150,6 +168,15 @@ router.get("/", (req, res, next) => {
         }
       };
     }
+    if (relation) {
+      where.relations = {
+        some: {
+          relation: {
+            slug: relation
+          }
+        }
+      };
+    }
     if (isNew === "true") {
       where.isNew = true;
     }
@@ -166,35 +193,54 @@ router.get("/", (req, res, next) => {
       where.badge = badge;
     }
     if (search) {
-      // First, try to find matching occasions
-      const matchingOccasions = await prisma.occasion.findMany({
-        where: {
-          OR: [
-            { name: { contains: search } },
-            { slug: { contains: search.toLowerCase().replace(/\s+/g, '-') } },
-          ],
-          isActive: true
-        },
-        select: { id: true }
-      });
+      const [matchingOccasions, matchingRelations] = await Promise.all([
+        prisma.occasion.findMany({
+          where: {
+            OR: [
+              { name: { contains: search } },
+              { slug: { contains: search.toLowerCase().replace(/\s+/g, "-") } },
+            ],
+            isActive: true,
+          },
+          select: { id: true },
+        }),
+        prisma.relation.findMany({
+          where: {
+            OR: [
+              { name: { contains: search } },
+              { slug: { contains: search.toLowerCase().replace(/\s+/g, "-") } },
+            ],
+            isActive: true,
+          },
+          select: { id: true },
+        }),
+      ]);
 
-      const occasionIds = matchingOccasions.map(o => o.id);
+      const occasionIds = matchingOccasions.map((o) => o.id);
+      const relationIds = matchingRelations.map((r) => r.id);
 
-      // Search in name, description, keywords, and occasions
       const searchConditions = [
         { name: { contains: search } },
         { description: { contains: search } },
-        { name: { startsWith: search } }, // Partial match at start
+        { name: { startsWith: search } },
       ];
 
-      // If matching occasions found, include products linked to those occasions
       if (occasionIds.length > 0) {
         searchConditions.push({
           occasions: {
             some: {
-              occasionId: { in: occasionIds }
-            }
-          }
+              occasionId: { in: occasionIds },
+            },
+          },
+        });
+      }
+      if (relationIds.length > 0) {
+        searchConditions.push({
+          relations: {
+            some: {
+              relationId: { in: relationIds },
+            },
+          },
         });
       }
 
@@ -211,6 +257,11 @@ router.get("/", (req, res, next) => {
       occasions: {
         include: {
           occasion: true,
+        },
+      },
+      relations: {
+        include: {
+          relation: true,
         },
       },
     };
@@ -299,6 +350,7 @@ router.get("/", (req, res, next) => {
       keywords: p.keywords ? JSON.parse(p.keywords) : [],
       categories: p.categories ? p.categories.map(pc => pc.category) : [],
       occasions: p.occasions ? p.occasions.map(po => po.occasion) : [],
+      relations: p.relations ? p.relations.map(pr => pr.relation) : [],
     }));
 
     // Apply price and size filters (after fetching)
@@ -362,6 +414,11 @@ router.get("/:id", cacheMiddleware(5 * 60 * 1000), async (req, res) => {
           include: {
             occasion: true
           }
+        },
+        relations: {
+          include: {
+            relation: true
+          }
         }
       },
     });
@@ -378,6 +435,7 @@ router.get("/:id", cacheMiddleware(5 * 60 * 1000), async (req, res) => {
       keywords: product.keywords ? JSON.parse(product.keywords) : [],
       categories: product.categories ? product.categories.map(pc => pc.category) : [],
       occasions: product.occasions ? product.occasions.map(po => po.occasion) : [],
+      relations: product.relations ? product.relations.map(pr => pr.relation) : [],
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -390,7 +448,7 @@ router.post("/", verifyToken, uploadProductMedia, async (req, res) => {
     // Invalidate products cache on create
     invalidateCache("/products");
     
-    const { name, description, badge, isFestival, isNew, isTrending, isReady60Min, hasSinglePrice, singlePrice, originalPrice, categoryIds, sizes, keywords, occasionIds, existingImages, existingVideos, instagramEmbeds } = req.body;
+    const { name, description, badge, isFestival, isNew, isTrending, isReady60Min, hasSinglePrice, singlePrice, originalPrice, categoryIds, sizes, keywords, occasionIds, relationIds, existingImages, existingVideos, instagramEmbeds } = req.body;
 
     // Upload images; for duplicate/create, existingImages can provide initial URLs
     let imageUrls = [];
@@ -432,9 +490,10 @@ router.post("/", verifyToken, uploadProductMedia, async (req, res) => {
       originalPrice: size.originalPrice != null && size.originalPrice !== "" ? parseFloat(size.originalPrice) : null,
     }));
 
-    // Parse category and occasion IDs
+    // Parse category, occasion, and relation IDs
     const categoryIdsArray = categoryIds ? JSON.parse(categoryIds) : [];
     const occasionIdsArray = occasionIds ? JSON.parse(occasionIds) : [];
+    const relationIdsArray = relationIds ? JSON.parse(relationIds) : [];
 
     const product = await prisma.product.create({
       data: {
@@ -464,6 +523,11 @@ router.post("/", verifyToken, uploadProductMedia, async (req, res) => {
           create: occasionIdsArray.map(occasionId => ({
             occasionId: Number(occasionId)
           }))
+        },
+        relations: {
+          create: relationIdsArray.map(relationId => ({
+            relationId: Number(relationId)
+          }))
         }
       },
       include: {
@@ -477,6 +541,11 @@ router.post("/", verifyToken, uploadProductMedia, async (req, res) => {
           include: {
             occasion: true
           }
+        },
+        relations: {
+          include: {
+            relation: true
+          }
         }
       },
     });
@@ -487,6 +556,7 @@ router.post("/", verifyToken, uploadProductMedia, async (req, res) => {
       videos: videoUrls,
       keywords: keywordsArray,
       occasions: product.occasions ? product.occasions.map(po => po.occasion) : [],
+      relations: product.relations ? product.relations.map(pr => pr.relation) : [],
     });
   } catch (error) {
     console.error("Create product error:", error);
@@ -500,7 +570,7 @@ router.put("/:id", verifyToken, uploadProductMedia, async (req, res) => {
     // Invalidate products cache on update
     invalidateCache("/products");
     
-    const { name, description, badge, isFestival, isNew, isTrending, isReady60Min, hasSinglePrice, singlePrice, originalPrice, categoryIds, sizes, keywords, existingImages, existingVideos, instagramEmbeds, occasionIds, imageOrder } = req.body;
+    const { name, description, badge, isFestival, isNew, isTrending, isReady60Min, hasSinglePrice, singlePrice, originalPrice, categoryIds, sizes, keywords, existingImages, existingVideos, instagramEmbeds, occasionIds, relationIds, imageOrder } = req.body;
 
     const existingProduct = await prisma.product.findUnique({
       where: { id: Number(req.params.id) },
@@ -571,9 +641,15 @@ router.put("/:id", verifyToken, uploadProductMedia, async (req, res) => {
       where: { productId: Number(req.params.id) },
     });
 
-    // Parse category and occasion IDs
+    // Delete old relation links
+    await prisma.productRelation.deleteMany({
+      where: { productId: Number(req.params.id) },
+    });
+
+    // Parse category, occasion, and relation IDs
     const categoryIdsArray = categoryIds ? JSON.parse(categoryIds) : [];
     const occasionIdsArray = occasionIds ? JSON.parse(occasionIds) : [];
+    const relationIdsArray = relationIds ? JSON.parse(relationIds) : [];
 
     const product = await prisma.product.update({
       where: { id: Number(req.params.id) },
@@ -604,6 +680,11 @@ router.put("/:id", verifyToken, uploadProductMedia, async (req, res) => {
           create: occasionIdsArray.map(occasionId => ({
             occasionId: Number(occasionId)
           }))
+        },
+        relations: {
+          create: relationIdsArray.map(relationId => ({
+            relationId: Number(relationId)
+          }))
         }
       },
       include: {
@@ -617,6 +698,11 @@ router.put("/:id", verifyToken, uploadProductMedia, async (req, res) => {
           include: {
             occasion: true
           }
+        },
+        relations: {
+          include: {
+            relation: true
+          }
         }
       },
     });
@@ -629,6 +715,7 @@ router.put("/:id", verifyToken, uploadProductMedia, async (req, res) => {
       keywords: keywordsArray,
       categories: product.categories ? product.categories.map(pc => pc.category) : [],
       occasions: product.occasions ? product.occasions.map(po => po.occasion) : [],
+      relations: product.relations ? product.relations.map(pr => pr.relation) : [],
     });
   } catch (error) {
     console.error("Update product error:", error);
