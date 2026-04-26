@@ -25,6 +25,7 @@ export default function ProductDetail() {
   const toast = useToast();
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null); // "not_found" | "network" | "server"
   const [selectedSize, setSelectedSize] = useState(null);
   const [quantity, setQuantity] = useState(1);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
@@ -86,10 +87,34 @@ export default function ProductDetail() {
 
   useEffect(() => {
     const ac = new AbortController();
+    setLoadError(null);
     setLoading(true);
-    fetch(`${API}/products/${id}`, { signal: ac.signal })
-      .then((res) => res.json())
+
+    // Guard: product IDs in this app are numeric
+    const numericId = Number(id);
+    if (!Number.isFinite(numericId) || Number.isNaN(numericId)) {
+      setProduct(null);
+      setLoading(false);
+      setLoadError("not_found");
+      return () => ac.abort();
+    }
+
+    fetch(`${API}/products/${encodeURIComponent(String(id))}`, { signal: ac.signal })
+      .then(async (res) => {
+        if (res.status === 404) {
+          setProduct(null);
+          setLoadError("not_found");
+          setLoading(false);
+          return null;
+        }
+        if (!res.ok) {
+          const text = await res.text().catch(() => "");
+          throw new Error(`HTTP_${res.status}:${text}`);
+        }
+        return res.json();
+      })
       .then((data) => {
+        if (!data) return; // handled (e.g. 404)
         setProduct(data);
         // Handle single price products
         if (data?.hasSinglePrice && data.singlePrice) {
@@ -162,6 +187,9 @@ export default function ProductDetail() {
         if (error?.name === "AbortError") return;
         console.error("Error fetching product:", error);
         setProductReels([]);
+        setProduct(null);
+        // If fetch fails entirely, it's usually network/DNS/CORS/TLS, not "not found"
+        setLoadError(String(error?.message || "").startsWith("HTTP_") ? "server" : "network");
         setLoading(false);
       });
 
@@ -191,10 +219,54 @@ export default function ProductDetail() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-800 mb-4">Product not found</h2>
-          <Link to="/" className="text-pink-600 hover:underline">
-            Go back to home
-          </Link>
+          {loadError === "network" ? (
+            <>
+              <h2 className="text-2xl font-bold text-gray-800 mb-2">Can’t reach the server</h2>
+              <p className="text-sm text-gray-600 mb-5 max-w-sm">
+                This link is valid, but your device/browser can’t connect to our API right now. Please check your connection or try again.
+              </p>
+              <div className="flex items-center justify-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => window.location.reload()}
+                  className="px-4 py-2 rounded-lg font-semibold text-sm"
+                  style={{ backgroundColor: "oklch(92% .04 340)", color: "oklch(20% .02 340)" }}
+                >
+                  Retry
+                </button>
+                <Link to="/" className="text-sm font-semibold hover:underline" style={{ color: "oklch(40% .02 340)" }}>
+                  Go home
+                </Link>
+              </div>
+            </>
+          ) : loadError === "server" ? (
+            <>
+              <h2 className="text-2xl font-bold text-gray-800 mb-2">Something went wrong</h2>
+              <p className="text-sm text-gray-600 mb-5 max-w-sm">
+                We couldn’t load this product due to a server error. Please try again in a moment.
+              </p>
+              <div className="flex items-center justify-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => window.location.reload()}
+                  className="px-4 py-2 rounded-lg font-semibold text-sm"
+                  style={{ backgroundColor: "oklch(92% .04 340)", color: "oklch(20% .02 340)" }}
+                >
+                  Retry
+                </button>
+                <Link to="/" className="text-sm font-semibold hover:underline" style={{ color: "oklch(40% .02 340)" }}>
+                  Go home
+                </Link>
+              </div>
+            </>
+          ) : (
+            <>
+              <h2 className="text-2xl font-bold text-gray-800 mb-4">Product not found</h2>
+              <Link to="/" className="text-pink-600 hover:underline">
+                Go back to home
+              </Link>
+            </>
+          )}
         </div>
       </div>
     );

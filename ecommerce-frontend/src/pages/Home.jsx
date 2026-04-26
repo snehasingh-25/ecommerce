@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, useRef } from "react";
 import { API } from "../api";
 import ProductCard from "../components/ProductCard";
 import { Link } from "react-router-dom";
-import BannerSlider from "../components/BannerSlider";
+import HeroPromoCarousel from "../components/HeroPromoCarousel";
 import { MemoReelCarousel as ReelCarousel } from "../components/ReelCarousel";
 import ProductCarousel from "../components/ProductCarousel";
 
@@ -13,7 +13,8 @@ export default function Home() {
   const [relations, setRelations] = useState([]);
   const [occasions, setOccasions] = useState([]);
   const [reels, setReels] = useState([]);
-  const [_banners, setBanners] = useState([]);
+  const [primaryBanners, setPrimaryBanners] = useState([]);
+  const [secondaryBanners, setSecondaryBanners] = useState([]);
   const [visibleProductsCount, setVisibleProductsCount] = useState(10);
   const [loading, setLoading] = useState({
     categories: true,
@@ -94,12 +95,20 @@ export default function Home() {
     fetch(`${API}/banners?type=primary`, { signal: ac.signal })
       .then((res) => res.json())
       .then((data) => {
-        setBanners(Array.isArray(data) ? data : []);
+        setPrimaryBanners(Array.isArray(data) ? data : []);
         setLoading((prev) => ({ ...prev, banners: false }));
       })
       .catch(() => {
         setLoading((prev) => ({ ...prev, banners: false }));
       });
+
+    // Fetch secondary banners for mid-page promos
+    fetch(`${API}/banners?type=secondary`, { signal: ac.signal })
+      .then((res) => res.json())
+      .then((data) => {
+        setSecondaryBanners(Array.isArray(data) ? data : []);
+      })
+      .catch(() => {});
 
     return () => {
       ac.abort();
@@ -146,6 +155,7 @@ export default function Home() {
   const categorySetWidthRef = useRef(0);
   const relationSetWidthRef = useRef(0);
   const occasionSetWidthRef = useRef(0);
+  const categoryAutoScrollIntervalRef = useRef(null);
 
   // Initialize scroll position to middle set and handle loop reset (categories)
   useEffect(() => {
@@ -175,7 +185,9 @@ export default function Home() {
   const scrollCategories = (direction) => {
     const el = scrollRef.current;
     if (!el || categories.length === 0) return;
-    const scrollAmount = 300;
+    // Slightly smaller step on small screens for smoother feel
+    const scrollAmount =
+      window.innerWidth >= 1024 ? 260 : window.innerWidth >= 640 ? 220 : 180;
     el.scrollBy({ left: direction === "left" ? -scrollAmount : scrollAmount, behavior: "smooth" });
     const setWidth = categorySetWidthRef.current || el.scrollWidth / 3;
     setTimeout(() => {
@@ -185,6 +197,30 @@ export default function Home() {
       else if (sl <= 50) scrollRef.current.scrollLeft = sl + setWidth;
     }, 350);
   };
+
+  // Auto-scroll categories every 3s (infinite loop via triple-list reset)
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || categories.length === 0) return;
+
+    if (categoryAutoScrollIntervalRef.current) {
+      clearInterval(categoryAutoScrollIntervalRef.current);
+      categoryAutoScrollIntervalRef.current = null;
+    }
+
+    categoryAutoScrollIntervalRef.current = setInterval(() => {
+      // If tab is hidden, avoid doing work
+      if (document.visibilityState && document.visibilityState !== "visible") return;
+      scrollCategories("right");
+    }, 3000);
+
+    return () => {
+      if (categoryAutoScrollIntervalRef.current) {
+        clearInterval(categoryAutoScrollIntervalRef.current);
+        categoryAutoScrollIntervalRef.current = null;
+      }
+    };
+  }, [categories.length]);
 
   const scrollRelations = (direction) => {
     const el = relationScrollRef.current;
@@ -249,14 +285,14 @@ export default function Home() {
       {/* Content */}
       {!isInitialLoad && (
         <>
-      {/* Primary Banner Slider */}
-      <BannerSlider bannerType="primary" />
+      {/* Hero promo carousel (3/2/1 cards per view) */}
+      <HeroPromoCarousel banners={primaryBanners} />
 
       {/* Shop By Category Section */}
       {categories.length > 0 ? (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center justify-between mb-8">
-            <h2 className="text-3xl font-bold" style={{ color: 'oklch(20% .02 340)' }}>Shop By Category</h2>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-1 sm:py-2">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-xl sm:text-2xl font-bold" style={{ color: 'oklch(20% .02 340)' }}>Shop By Category</h2>
             <Link 
               to="/categories" 
               className="text-sm font-semibold inline-flex items-center gap-1 transition-all duration-300 hover:gap-2 group"
@@ -290,7 +326,7 @@ export default function Home() {
             </button>
             <div
               ref={scrollRef}
-              className="flex gap-3 sm:gap-4 overflow-x-auto scrollbar-hide pb-4 px-1 sm:px-2"
+              className="flex gap-3 sm:gap-4 overflow-x-auto scrollbar-hide pb-2 px-1 sm:px-2"
               style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
               onScroll={() => {
                 if (scrollEndTimerRef.current) clearTimeout(scrollEndTimerRef.current);
@@ -301,9 +337,9 @@ export default function Home() {
                 <Link
                   key={`cat-${i}-${category.id}`}
                   to={`/category/${category.slug}`}
-                  className="flex-shrink-0 flex flex-col items-center min-w-[100px] sm:min-w-[120px] group"
+                  className="flex-shrink-0 flex flex-col items-center min-w-[64px] sm:min-w-[72px] lg:min-w-[86px] group"
                 >
-                  <div className="w-24 h-24 sm:w-28 sm:h-28 lg:w-32 lg:h-32 rounded-full flex items-center justify-center text-4xl sm:text-5xl border-2 group-hover:shadow-lg group-hover:scale-110 transition-all duration-300 overflow-hidden cursor-pointer"
+                  <div className="w-14 h-14 sm:w-16 sm:h-16 lg:w-20 lg:h-20 rounded-full flex items-center justify-center text-2xl sm:text-3xl border-2 group-hover:shadow-lg group-hover:scale-110 transition-all duration-300 overflow-hidden cursor-pointer"
                     style={{ 
                       backgroundColor: 'oklch(92% .04 340)',
                       borderColor: 'oklch(92% .04 340)'
@@ -327,7 +363,7 @@ export default function Home() {
                       </div>
                     )}
                   </div>
-                  <span className="text-sm font-semibold text-center transition-colors mt-2"
+                  <span className="text-xs sm:text-sm font-semibold text-center transition-colors mt-2"
                     style={{ color: 'oklch(40% .02 340)' }}
                     onMouseEnter={(e) => e.target.style.color = 'oklch(92% .04 340)'}
                     onMouseLeave={(e) => e.target.style.color = 'oklch(40% .02 340)'}
@@ -362,7 +398,7 @@ export default function Home() {
       {trendingProducts.length > 0 ? (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 bg-white">
           <div className="flex items-center justify-between mb-10">
-            <h2 className="text-3xl font-bold" style={{ color: 'oklch(20% .02 340)' }}>Trending Products</h2>
+            <h2 className="text-xl sm:text-2xl font-bold tracking-tight" style={{ color: 'oklch(20% .02 340)' }}>Trending Products</h2>
             <Link
               to="/categories?trending=true"
               className="text-sm font-semibold inline-flex items-center gap-1 transition-all duration-300 hover:gap-2 group"
@@ -396,7 +432,7 @@ export default function Home() {
       {relations.length > 0 ? (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center justify-between mb-8">
-            <h2 className="text-3xl font-bold" style={{ color: "oklch(20% .02 340)" }}>Shop By Relation</h2>
+            <h2 className="text-xl sm:text-2xl font-bold tracking-tight" style={{ color: "oklch(20% .02 340)" }}>Shop By Relation</h2>
             <Link
               to="/relation"
               className="text-sm font-semibold inline-flex items-center gap-1 transition-all duration-300 hover:gap-2 group"
@@ -495,7 +531,7 @@ export default function Home() {
       {occasions.length > 0 ? (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center justify-between mb-8">
-            <h2 className="text-3xl font-bold" style={{ color: 'oklch(20% .02 340)' }}>Shop By Occasion</h2>
+            <h2 className="text-xl sm:text-2xl font-bold tracking-tight" style={{ color: 'oklch(20% .02 340)' }}>Shop By Occasion</h2>
             <Link 
               to="/occasion" 
               className="text-sm font-semibold inline-flex items-center gap-1 transition-all duration-300 hover:gap-2 group"
@@ -593,7 +629,7 @@ export default function Home() {
       {/* Trending Gifts Section */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 bg-white">
           <div className="flex items-center justify-between mb-10">
-            <h2 className="text-3xl font-bold" style={{ color: 'oklch(20% .02 340)' }}>Gifts</h2>
+            <h2 className="text-xl sm:text-2xl font-bold tracking-tight" style={{ color: 'oklch(20% .02 340)' }}>Gifts</h2>
             {products.length > 0 && (
               <Link
                 to="/shop"
@@ -625,12 +661,12 @@ export default function Home() {
         </div>
 
       {/* Secondary Banner Section - Between Gifts and Reels */}
-      {!isInitialLoad && <BannerSlider bannerType="secondary" />}
+      {!isInitialLoad && <HeroPromoCarousel banners={secondaryBanners} />}
 
       {/* Reels Section */}
       {reels.length > 0 && (
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 bg-white">
-            <h2 className="text-3xl font-bold mb-8 text-center" style={{ color: 'oklch(20% .02 340)' }}>
+            <h2 className="text-xl sm:text-2xl font-bold mb-6 text-center tracking-tight" style={{ color: 'oklch(20% .02 340)' }}>
               Follow Us{" "}
               <a
                 href="https://www.instagram.com/giftchoicebhl"

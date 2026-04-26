@@ -401,8 +401,13 @@ router.get("/", (req, res, next) => {
 // Get single product (public) - Cached for 5 minutes
 router.get("/:id", cacheMiddleware(5 * 60 * 1000), async (req, res) => {
   try {
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id) || Number.isNaN(id)) {
+      return res.status(400).json({ message: "Invalid product id" });
+    }
+
     const product = await prisma.product.findUnique({
-      where: { id: Number(req.params.id) },
+      where: { id },
       include: { 
         sizes: true,
         categories: {
