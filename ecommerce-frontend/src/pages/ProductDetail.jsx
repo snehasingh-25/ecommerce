@@ -3,8 +3,7 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { API } from "../api";
 import { useCart } from "../context/CartContext";
 import { useToast } from "../context/ToastContext";
-import ProductCard from "../components/ProductCard";
-import RecommendationCarousel from "../components/RecommendationCarousel";
+import HorizontalProductCarousel from "../components/HorizontalProductCarousel";
 import { MemoReelCarousel as ReelCarousel } from "../components/ReelCarousel";
 import InstagramThumbnail from "../components/InstagramThumbnail";
 
@@ -212,8 +211,122 @@ export default function ProductDetail() {
   };
 
   if (loading) {
-    return null;
+    return (
+      <div className="min-h-screen bg-white">
+        <style>{`
+          @keyframes pd-shimmer {
+            0%   { background-position: -600px 0; }
+            100% { background-position: 600px 0; }
+          }
+          .pd-sk {
+            background: linear-gradient(90deg, oklch(93% .03 340) 25%, oklch(96% .02 340) 50%, oklch(93% .03 340) 75%);
+            background-size: 1200px 100%;
+            animation: pd-shimmer 1.5s ease-in-out infinite;
+          }
+        `}</style>
+
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-16">
+          {/* Breadcrumb */}
+          <div className="mb-5 flex items-center gap-2">
+            <div className="pd-sk h-3 w-10 rounded" />
+            <div className="pd-sk h-3 w-3 rounded" />
+            <div className="pd-sk h-3 w-14 rounded" />
+            <div className="pd-sk h-3 w-3 rounded" />
+            <div className="pd-sk h-3 w-32 rounded" />
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+            {/* Left: Media gallery skeleton */}
+            <div className="lg:col-span-7">
+              <div className="lg:flex lg:gap-4">
+                {/* Desktop thumbnails */}
+                <div className="hidden lg:flex flex-col gap-3 w-20 shrink-0">
+                  {[...Array(5)].map((_, i) => (
+                    <div key={i} className="pd-sk aspect-square w-20 rounded-xl" />
+                  ))}
+                </div>
+
+                {/* Main image */}
+                <div className="flex-1">
+                  <div className="pd-sk rounded-3xl w-full" style={{ paddingBottom: "100%" }} />
+
+                  {/* Mobile thumbnails */}
+                  <div className="mt-4 flex gap-3 lg:hidden">
+                    {[...Array(4)].map((_, i) => (
+                      <div key={i} className="pd-sk shrink-0 w-20 aspect-square rounded-2xl" />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Right: Buy box skeleton */}
+            <div className="lg:col-span-5">
+              <div className="rounded-3xl border bg-white p-6 shadow-sm" style={{ borderColor: "oklch(92% .04 340)" }}>
+                {/* Title */}
+                <div className="pd-sk h-9 w-4/5 rounded-lg" />
+                <div className="pd-sk h-9 w-2/3 rounded-lg mt-2" />
+
+                {/* Price */}
+                <div className="mt-4 flex items-baseline gap-3">
+                  <div className="pd-sk h-8 w-28 rounded-lg" />
+                  <div className="pd-sk h-5 w-16 rounded" />
+                  <div className="pd-sk h-4 w-12 rounded" />
+                </div>
+
+                {/* Size selector */}
+                <div className="mt-7">
+                  <div className="pd-sk h-4 w-20 rounded mb-3" />
+                  <div className="flex gap-2 flex-wrap">
+                    {[...Array(6)].map((_, i) => (
+                      <div key={i} className="pd-sk w-12 h-12 rounded-md" />
+                    ))}
+                  </div>
+                </div>
+
+                {/* Quantity */}
+                <div className="mt-6">
+                  <div className="pd-sk h-4 w-16 rounded mb-3" />
+                  <div className="pd-sk h-[3.25rem] w-36 rounded-2xl" />
+                </div>
+
+                {/* Total */}
+                <div className="mt-6 rounded-2xl border px-4 py-4" style={{ borderColor: "oklch(92% .04 340)" }}>
+                  <div className="flex items-center justify-between">
+                    <div className="pd-sk h-4 w-10 rounded" />
+                    <div className="pd-sk h-7 w-20 rounded" />
+                  </div>
+                </div>
+
+                {/* CTA buttons */}
+                <div className="mt-6 grid grid-cols-2 gap-3">
+                  <div className="pd-sk h-12 rounded-2xl" />
+                  <div className="pd-sk h-12 rounded-2xl" />
+                </div>
+
+                {/* Continue shopping link */}
+                <div className="pd-sk h-4 w-36 rounded mx-auto mt-4" />
+              </div>
+
+              {/* Accordion skeleton */}
+              <div className="mt-4 rounded-3xl border bg-white overflow-hidden" style={{ borderColor: "oklch(92% .04 340)" }}>
+                {[...Array(2)].map((_, i) => (
+                  <div key={i}>
+                    <div className="flex items-center justify-between px-5 py-4">
+                      <div className="pd-sk h-4 w-32 rounded" />
+                      <div className="pd-sk h-5 w-5 rounded" />
+                    </div>
+                    {i < 1 && <div className="h-px" style={{ backgroundColor: "oklch(92% .04 340)" }} />}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   }
+
 
   if (!product) {
     return (
@@ -377,7 +490,7 @@ export default function ProductDetail() {
 
                 {/* Primary image, video, or Instagram embed */}
                 <div className="flex-1">
-                  <div className="relative rounded-3xl overflow-hidden bg-white border" style={{ borderColor: "oklch(92% .04 340)" }}>
+                  <div className="relative overflow-hidden bg-white ">
                     <div className="relative w-full" style={{ paddingBottom: activeMedia?.type === "instagram" ? "125%" : activeMedia?.type === "video" ? "56.25%" : "100%" }}>
                       {activeMedia?.type === "instagram" ? (
                         <div className="absolute inset-0 w-full h-full bg-gray-50 flex items-center justify-center p-4">
@@ -506,8 +619,8 @@ export default function ProductDetail() {
             {/* Right: Sticky buy box */}
             <aside className="lg:col-span-5">
               <div className="lg:sticky lg:top-6">
-                <div className="rounded-3xl border bg-white p-6 shadow-sm" style={{ borderColor: "oklch(92% .04 340)" }}>
-                  <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight" style={{ color: "oklch(20% .02 340)" }}>
+                <div className="bg-white">
+                  <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight" style={{ color: "oklch(20% .02 340)" }}>
                     {product.name}
                   </h1>
 
@@ -515,7 +628,7 @@ export default function ProductDetail() {
                   <div className="mt-4 flex flex-wrap items-baseline gap-2">
                     {selectedSize ? (
                       <>
-                        <div className="text-3xl font-extrabold" style={{ color: "oklch(20% .02 340)" }}>
+                        <div className="text-2xl font-extrabold" style={{ color: "oklch(20% .02 340)" }}>
                           ₹{Number(selectedSize.price).toLocaleString("en-IN")}
                         </div>
                         {(() => {
@@ -535,7 +648,7 @@ export default function ProductDetail() {
                       </>
                     ) : product?.hasSinglePrice && product?.singlePrice != null ? (
                       <>
-                        <div className="text-3xl font-extrabold" style={{ color: "oklch(20% .02 340)" }}>
+                        <div className="text-2xl font-extrabold" style={{ color: "oklch(20% .02 340)" }}>
                           ₹{Number(product.singlePrice).toLocaleString("en-IN")}
                         </div>
                         {product.originalPrice != null && Number(product.originalPrice) > Number(product.singlePrice) && (
@@ -605,8 +718,7 @@ export default function ProductDetail() {
                       <button
                         type="button"
                         onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                        className="w-9 h-9 rounded-xl border font-black"
-                        style={{ borderColor: "oklch(92% .04 340)", color: "oklch(20% .02 340)" }}
+                        className="font-black"
                       >
                         −
                       </button>
@@ -616,8 +728,7 @@ export default function ProductDetail() {
                       <button
                         type="button"
                         onClick={() => setQuantity((q) => q + 1)}
-                        className="w-9 h-9 rounded-xl border font-black"
-                        style={{ borderColor: "oklch(92% .04 340)", color: "oklch(20% .02 340)" }}
+                        className="font-black"
                       >
                         +
                       </button>
@@ -708,7 +819,7 @@ export default function ProductDetail() {
           {/* Product Reels Section */}
           {productReels.length > 0 && (
             <section className="mt-16 px-4 sm:px-6 lg:px-8">
-              <h2 className="text-2xl sm:text-3xl font-extrabold mb-6" style={{ color: "oklch(20% .02 340)" }}>
+              <h2 className="text-xl sm:text-2xl font-extrabold mb-6" style={{ color: "oklch(20% .02 340)" }}>
                 Product Reels
               </h2>
               <ReelCarousel reels={productReels} />
@@ -716,25 +827,20 @@ export default function ProductDetail() {
           )}
 
           {/* Similar Products Section */}
-          {similarProducts.length > 0 && (
-            <section className="mt-16 px-4 sm:px-6 lg:px-8">
-              <h2 className="text-2xl sm:text-3xl font-extrabold mb-6" style={{ color: "oklch(20% .02 340)" }}>
-                Similar Products
-              </h2>
-              {similarProducts.length > 0 && (
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 sm:gap-6">
-                  {similarProducts.map((similarProduct) => (
-                    <ProductCard key={similarProduct.id} product={similarProduct} />
-                  ))}
-                </div>
-              )}
-            </section>
-          )}
+          <HorizontalProductCarousel
+            title="Products from the same category"
+            products={similarProducts}
+            isLoading={loadingSimilar}
+            excludeProductId={id}
+            
+          />
 
           {/* Recommendation Carousel Section */}
-          <RecommendationCarousel 
-            products={recommendedProducts} 
+          <HorizontalProductCarousel
+            title="You May Also Like"
+            products={recommendedProducts}
             isLoading={loadingRecommendations}
+            excludeProductId={id}
           />
         </div>
       </div>

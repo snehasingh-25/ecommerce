@@ -107,7 +107,7 @@ export default function CategoriesPage() {
     <div className="min-h-screen bg-white py-4 sm:py-6">
       <div className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
         <div className="text-left mb-4">
-          <h2 className="text-2xl sm:text-3xl font-bold mb-1" style={{ color: 'oklch(20% .02 340)' }}>
+          <h2 className="text-xl sm:text-2xl font-bold mb-1" style={{ color: 'oklch(20% .02 340)' }}>
             Shop by Category
           </h2>
         </div>

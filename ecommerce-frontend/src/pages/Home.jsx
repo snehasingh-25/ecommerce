@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useState, useRef } from "react";
 import { API } from "../api";
-import ProductCard from "../components/ProductCard";
 import { Link } from "react-router-dom";
 import HeroPromoCarousel from "../components/HeroPromoCarousel";
 import { MemoReelCarousel as ReelCarousel } from "../components/ReelCarousel";
-import ProductCarousel from "../components/ProductCarousel";
+import HorizontalProductCarousel from "../components/HorizontalProductCarousel";
 
 export default function Home() {
   const [products, setProducts] = useState([]);
@@ -282,6 +281,114 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-white fade-in">
+      <style>{`
+        @keyframes home-shimmer {
+          0%   { background-position: -600px 0; }
+          100% { background-position: 600px 0; }
+        }
+        .hm-sk {
+          background: linear-gradient(90deg, oklch(93% .03 340) 25%, oklch(96% .02 340) 50%, oklch(93% .03 340) 75%);
+          background-size: 1200px 100%;
+          animation: home-shimmer 1.5s ease-in-out infinite;
+        }
+      `}</style>
+
+      {/* Skeleton — shown while any section is still loading */}
+      {isInitialLoad && (
+        <div>
+          {/* Hero banner */}
+          <div className="hm-sk w-full" style={{ height: "clamp(180px, 40vw, 420px)" }} />
+
+          {/* Shop By Category */}
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="hm-sk h-6 w-40 rounded" />
+              <div className="hm-sk h-4 w-16 rounded" />
+            </div>
+            <div className="flex gap-4 overflow-hidden">
+              {[...Array(8)].map((_, i) => (
+                <div key={i} className="flex-shrink-0 flex flex-col items-center gap-2">
+                  <div className="hm-sk w-16 h-16 sm:w-20 sm:h-20 rounded-full" />
+                  <div className="hm-sk h-3 w-12 rounded" />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Trending Products */}
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-6">
+            <div className="flex items-center justify-between mb-6">
+              <div className="hm-sk h-6 w-44 rounded" />
+              <div className="hm-sk h-4 w-16 rounded" />
+            </div>
+            <div className="flex gap-3 overflow-hidden">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="shrink-0 basis-[calc((100%-0.5rem)/2)] lg:basis-[calc((100%-2rem)/5)]">
+                  <div className="hm-sk aspect-[4/5] w-full" />
+                  <div className="mt-2 space-y-2 px-1">
+                    <div className="hm-sk h-3 w-3/4 rounded" />
+                    <div className="hm-sk h-3 w-1/3 rounded" />
+                    <div className="hm-sk h-9 w-full" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Shop By Relation */}
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-6">
+            <div className="flex items-center justify-between mb-6">
+              <div className="hm-sk h-6 w-36 rounded" />
+              <div className="hm-sk h-4 w-16 rounded" />
+            </div>
+            <div className="flex gap-5 overflow-hidden">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="flex-shrink-0 flex flex-col items-center gap-2">
+                  <div className="hm-sk w-32 h-32 sm:w-36 sm:h-36 rounded-lg" />
+                  <div className="hm-sk h-3 w-20 rounded" />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Shop By Occasion */}
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-6">
+            <div className="flex items-center justify-between mb-6">
+              <div className="hm-sk h-6 w-36 rounded" />
+              <div className="hm-sk h-4 w-16 rounded" />
+            </div>
+            <div className="flex gap-5 overflow-hidden">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="flex-shrink-0 flex flex-col items-center gap-2">
+                  <div className="hm-sk w-32 h-32 sm:w-36 sm:h-36 rounded-lg" />
+                  <div className="hm-sk h-3 w-20 rounded" />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Gifts */}
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-10">
+            <div className="flex items-center justify-between mb-6">
+              <div className="hm-sk h-6 w-16 rounded" />
+              <div className="hm-sk h-4 w-16 rounded" />
+            </div>
+            <div className="flex gap-3 overflow-hidden">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="shrink-0 basis-[calc((100%-0.5rem)/2)] lg:basis-[calc((100%-2rem)/5)]">
+                  <div className="hm-sk aspect-[4/5] w-full" />
+                  <div className="mt-2 space-y-2 px-1">
+                    <div className="hm-sk h-3 w-3/4 rounded" />
+                    <div className="hm-sk h-3 w-1/3 rounded" />
+                    <div className="hm-sk h-9 w-full" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Content */}
       {!isInitialLoad && (
         <>
@@ -326,7 +433,7 @@ export default function Home() {
             </button>
             <div
               ref={scrollRef}
-              className="flex gap-3 sm:gap-4 overflow-x-auto scrollbar-hide pb-2 px-1 sm:px-2"
+              className="flex gap-1 sm:gap-2 overflow-x-auto scrollbar-hide pb-2 px-1 sm:px-2"
               style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
               onScroll={() => {
                 if (scrollEndTimerRef.current) clearTimeout(scrollEndTimerRef.current);
@@ -395,38 +502,14 @@ export default function Home() {
       ) : null}
 
       {/* Trending Products Section */}
-      {trendingProducts.length > 0 ? (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 bg-white">
-          <div className="flex items-center justify-between mb-10">
-            <h2 className="text-xl sm:text-2xl font-bold tracking-tight" style={{ color: 'oklch(20% .02 340)' }}>Trending Products</h2>
-            <Link
-              to="/categories?trending=true"
-              className="text-sm font-semibold inline-flex items-center gap-1 transition-all duration-300 hover:gap-2 group"
-              style={{ color: 'oklch(20% .02 340)' }}
-              onMouseEnter={(e) => e.target.style.color = 'oklch(40% .02 340)'}
-              onMouseLeave={(e) => e.target.style.color = 'oklch(20% .02 340)'}
-            >
-              View All
-              <svg className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </Link>
-          </div>
-          <div
-            className="flex gap-5 overflow-x-auto pb-4 px-1 snap-x snap-mandatory scrollbar-hide"
-            style={{ WebkitOverflowScrolling: "touch" }}
-          >
-            {trendingProducts.map((p) => (
-              <div
-                key={p.id}
-                className="shrink-0 snap-start w-[48%] lg:w-[20%]"
-              >
-                <ProductCard product={p} />
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : null}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <HorizontalProductCarousel
+          title="Trending Products"
+          products={trendingProducts}
+          isLoading={loading.products}
+          sectionClassName="mt-6 lg:mt-8"
+        />
+      </div>
 
       {/* Shop By Relation Section (above Occasions) */}
       {relations.length > 0 ? (
@@ -626,39 +709,15 @@ export default function Home() {
         </div>
       ) : null}
 
-      {/* Trending Gifts Section */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 bg-white">
-          <div className="flex items-center justify-between mb-10">
-            <h2 className="text-xl sm:text-2xl font-bold tracking-tight" style={{ color: 'oklch(20% .02 340)' }}>Gifts</h2>
-            {products.length > 0 && (
-              <Link
-                to="/shop"
-                className="text-sm font-semibold inline-flex items-center gap-1 transition-all duration-300 hover:gap-2 group"
-                style={{ color: 'oklch(20% .02 340)' }}
-                onMouseEnter={(e) => e.target.style.color = 'oklch(40% .02 340)'}
-                onMouseLeave={(e) => e.target.style.color = 'oklch(20% .02 340)'}
-              >
-                View All
-                <svg className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </Link>
-            )}
-          </div>
-          {visibleProducts.length > 0 ? (
-            <ProductCarousel products={visibleProducts} title="Gifts" showAutoScroll={false} />
-          ) : (
-            <div className="text-center py-16">
-              <div className="inline-block p-6 rounded-full mb-4" style={{ backgroundColor: 'oklch(92% .04 340)' }}>
-                <img src="/logo.png" alt="Gift Choice Logo" className="w-16 h-16 object-contain" />
-              </div>
-              <h3 className="text-2xl font-bold mb-2" style={{ color: 'oklch(20% .02 340)' }}>Gift Choice</h3>
-              <p className="font-medium" style={{ color: 'oklch(60% .02 340)' }}>
-                More amazing gifts coming soon!
-              </p>
-            </div>
-          )}
-        </div>
+      {/* Gifts Section */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <HorizontalProductCarousel
+          title="Gifts"
+          products={visibleProducts}
+          isLoading={loading.products}
+          sectionClassName="mt-6 lg:mt-8"
+        />
+      </div>
 
       {/* Secondary Banner Section - Between Gifts and Reels */}
       {!isInitialLoad && <HeroPromoCarousel banners={secondaryBanners} />}
