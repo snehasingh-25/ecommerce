@@ -123,9 +123,7 @@ const cache = new Cache();
 // Periodic cleanup every 1 minute
 setInterval(() => {
   const cleaned = cache.cleanup();
-  if (cleaned > 0) {
-    console.log(`Cache cleanup: Removed ${cleaned} expired entries`);
-  }
+  void cleaned;
 }, 60 * 1000);
 
 /**
@@ -173,7 +171,6 @@ export const cacheMiddleware = (ttl = 5 * 60 * 1000) => {
  */
 export const invalidateCache = (pattern) => {
   cache.clearPattern(pattern);
-  console.log(`Cache invalidated for pattern: ${pattern}`);
 };
 
 export default cache;

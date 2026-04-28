@@ -19,12 +19,7 @@ const ADMIN_PASSWORD = (process.env.ADMIN_PASSWORD)
   .replace(/^["']|["']$/g, "")
   .trim();
 
-// Debug logging - always show to help diagnose
-console.log("=== Admin credentials loaded in auth.js ===");
-console.log("Raw ADMIN_EMAIL from env:", process.env.ADMIN_EMAIL);
-console.log("Processed ADMIN_EMAIL:", ADMIN_EMAIL);
-console.log("ADMIN_PASSWORD is set:", ADMIN_PASSWORD ? "YES" : "NO");
-console.log("==========================================");
+// Debug logging removed (no console.log)
 
 export const verifyToken = (req, res, next) => {
   try {

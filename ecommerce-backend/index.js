@@ -21,18 +21,7 @@ import chatRoutes from "./routes/chat.js";
 import instagramRoutes from "./routes/instagram.js";
 import cache from "./utils/cache.js";
 
-// Log startup information
-console.log("=== Server Startup ===");
-console.log("Node version:", process.version);
-console.log("Current directory:", process.cwd());
-
 dotenv.config();
-
-console.log("Environment variables loaded");
-console.log("PORT:", process.env.PORT || "3000 (default)");
-console.log("HOST:", process.env.HOST || "0.0.0.0 (default)");
-console.log("DATABASE_URL:", process.env.DATABASE_URL ? "Set ✓" : "NOT SET ✗");
-console.log("NODE_ENV:", process.env.NODE_ENV || "development");
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -88,11 +77,7 @@ app.use((err, req, res, next) => {
   next(err);
 });
 
-// Request logging middleware (for debugging)
-app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
-  next();
-});
+// Request logging middleware removed (no console.log noise)
 
 // Serve uploaded files
 app.use(
@@ -226,19 +211,11 @@ process.on("uncaughtException", (error) => {
 // Create HTTP server with keep-alive enabled
 let server;
 try {
-  console.log(`Attempting to start server on ${HOST}:${PORT}...`);
   server = app.listen(PORT, HOST, () => {
     const actualPort = server.address().port;
     const actualAddress = server.address().address;
-    console.log("=== Server Started Successfully ===");
-    console.log(`✓ Server running on ${HOST}:${PORT}`);
-    console.log(`✓ Actual listening address: ${actualAddress}:${actualPort}`);
-    console.log(`✓ Environment PORT variable: ${process.env.PORT || 'not set (using default 3000)'}`);
-    console.log("✓ HTTP keep-alive: Enabled");
-    console.log("✓ Prisma connection pooling: Enabled (singleton pattern)");
-    console.log("✓ Backend caching: Enabled (5min TTL for products, categories, occasions, banners, reels)");
-    console.log("✓ Environment:", process.env.NODE_ENV || "development");
-    console.log("=== Ready to accept requests ===");
+    void actualPort;
+    void actualAddress;
   });
 
   server.on("error", (error) => {
@@ -266,15 +243,11 @@ server.headersTimeout = 66000; // 66 seconds
 
 // Graceful shutdown
 process.on("SIGTERM", async () => {
-  console.log("SIGTERM signal received: closing HTTP server");
   server.close(() => {
-    console.log("HTTP server closed");
   });
 });
 
 process.on("SIGINT", async () => {
-  console.log("SIGINT signal received: closing HTTP server");
   server.close(() => {
-    console.log("HTTP server closed");
   });
 });

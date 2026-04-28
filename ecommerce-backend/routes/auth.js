@@ -20,14 +20,7 @@ router.post("/login", async (req, res) => {
     const normalizedAdminEmail = ADMIN_EMAIL.replace(/^["']|["']$/g, "").trim().toLowerCase();
     const normalizedAdminPassword = ADMIN_PASSWORD.replace(/^["']|["']$/g, "").trim();
 
-    // Debug logging (remove in production)
-    if (process.env.NODE_ENV !== "production") {
-      console.log("Login attempt:");
-      console.log("Provided email:", normalizedEmail);
-      console.log("Expected email:", normalizedAdminEmail);
-      console.log("Email match:", normalizedEmail === normalizedAdminEmail);
-      console.log("Password match:", normalizedPassword === normalizedAdminPassword);
-    }
+    // Debug logging removed (no console.log)
 
     // Check against hardcoded admin credentials
     if (normalizedEmail !== normalizedAdminEmail || normalizedPassword !== normalizedAdminPassword) {

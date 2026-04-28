@@ -33,7 +33,6 @@ if (process.env.CLOUDINARY_URL) {
 
 if (cloudinaryConfig) {
   cloudinary.config(cloudinaryConfig);
-  console.log("Cloudinary configured successfully");
 }
 
 // Local storage configuration

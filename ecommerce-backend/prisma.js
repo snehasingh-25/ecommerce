@@ -33,7 +33,6 @@ if (process.env.NODE_ENV !== "production") {
 // Graceful shutdown - disconnect Prisma on process exit
 const gracefulShutdown = async () => {
   await prisma.$disconnect();
-  console.log("Prisma client disconnected");
 };
 
 process.on("beforeExit", gracefulShutdown);
