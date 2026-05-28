@@ -398,6 +398,32 @@ router.get("/", (req, res, next) => {
   }
 });
 
+function resolveProductImageUrls({ existingImages, imageOrder, imageFiles = [] }) {
+  const ordered = imageOrder ? (typeof imageOrder === "string" ? JSON.parse(imageOrder) : imageOrder) : null;
+  const files = Array.isArray(imageFiles) ? imageFiles : [];
+
+  if (Array.isArray(ordered) && ordered.length > 0) {
+    const imageUrls = [];
+    let fileIndex = 0;
+
+    for (const entry of ordered) {
+      if (entry === "NEW") {
+        if (fileIndex < files.length) {
+          imageUrls.push(files[fileIndex]);
+          fileIndex++;
+        }
+      } else if (typeof entry === "string" && entry.length > 0) {
+        imageUrls.push(entry);
+      }
+    }
+
+    return imageUrls;
+  }
+
+  const baseImages = existingImages ? (typeof existingImages === "string" ? JSON.parse(existingImages) : existingImages) : [];
+  return [...(Array.isArray(baseImages) ? baseImages : []), ...files];
+}
+
 // Get single product (public) - Cached for 5 minutes
 router.get("/:id", cacheMiddleware(5 * 60 * 1000), async (req, res) => {
   try {
@@ -455,19 +481,17 @@ router.post("/", verifyToken, uploadProductMedia, async (req, res) => {
     
     const { name, description, badge, isFestival, isNew, isTrending, isReady60Min, hasSinglePrice, singlePrice, originalPrice, categoryIds, sizes, keywords, occasionIds, relationIds, existingImages, existingVideos, instagramEmbeds } = req.body;
 
-    // Upload images; for duplicate/create, existingImages can provide initial URLs
-    let imageUrls = [];
-    if (existingImages) {
-      try {
-        const parsed = typeof existingImages === "string" ? JSON.parse(existingImages) : existingImages;
-        if (Array.isArray(parsed)) imageUrls = parsed;
-      } catch (_) {}
-    }
     const imageFiles = req.files?.images || [];
+    const uploadedImageUrls = [];
     for (const file of imageFiles) {
       const url = await getImageUrl(file);
-      imageUrls.push(url);
+      uploadedImageUrls.push(url);
     }
+    const imageUrls = resolveProductImageUrls({
+      existingImages,
+      imageOrder: req.body.imageOrder,
+      imageFiles: uploadedImageUrls,
+    });
     // Upload videos; existingVideos can provide initial URLs (e.g. duplicate)
     let videoUrls = [];
     if (existingVideos) {
@@ -586,30 +610,17 @@ router.put("/:id", verifyToken, uploadProductMedia, async (req, res) => {
     }
 
     // Handle images: support optional imageOrder for drag-and-drop ordering (array of URLs + "NEW" for new uploads)
-    let imageUrls = [];
     const imageFiles = Array.isArray(req.files?.images) ? req.files.images : (req.files?.images ? [req.files.images] : []);
-    const ordered = imageOrder ? (typeof imageOrder === "string" ? JSON.parse(imageOrder) : imageOrder) : null;
-
-    if (Array.isArray(ordered) && ordered.length > 0) {
-      let fileIndex = 0;
-      for (const entry of ordered) {
-        if (entry === "NEW") {
-          if (fileIndex < imageFiles.length) {
-            const url = await getImageUrl(imageFiles[fileIndex]);
-            imageUrls.push(url);
-            fileIndex++;
-          }
-        } else if (typeof entry === "string" && entry.length > 0) {
-          imageUrls.push(entry);
-        }
-      }
-    } else {
-      imageUrls = existingImages ? JSON.parse(existingImages) : [];
-      for (const file of imageFiles) {
-        const url = await getImageUrl(file);
-        imageUrls.push(url);
-      }
+    const uploadedImageUrls = [];
+    for (const file of imageFiles) {
+      const url = await getImageUrl(file);
+      uploadedImageUrls.push(url);
     }
+    const imageUrls = resolveProductImageUrls({
+      existingImages,
+      imageOrder,
+      imageFiles: uploadedImageUrls,
+    });
     // Handle videos
     let videoUrls = existingVideos ? JSON.parse(existingVideos) : [];
     const videoFiles = req.files?.videos || [];
