@@ -4,6 +4,11 @@ import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 import fs from "fs";
 import dotenv from "dotenv";
+import { IMAGE_CONFIG } from "../config/images.js";
+import {
+  optimizeProductImage,
+  validateProductImageMime,
+} from "./imageOptimizer.js";
 
 dotenv.config();
 
@@ -101,14 +106,16 @@ export const uploadReelFiles = multer({
 });
 
 // Product media: images (field "images") + videos (field "videos")
-// Max 50MB per file. Your reverse proxy (e.g. nginx) must allow this: client_max_body_size 50m;
+// Images: max 10MB raw (optimized to WebP after upload). Videos: max 50MB.
 export const uploadProductMedia = multer({
   storage: storage,
   limits: {
-    fileSize: 50 * 1024 * 1024, // 50MB per file (images and videos)
+    fileSize: 50 * 1024 * 1024,
   },
   fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith("video/") || file.mimetype.startsWith("image/")) {
+    if (file.mimetype.startsWith("video/")) {
+      cb(null, true);
+    } else if (file.mimetype.startsWith("image/")) {
       cb(null, true);
     } else {
       cb(new Error("Only video and image files are allowed"), false);
@@ -118,6 +125,38 @@ export const uploadProductMedia = multer({
   { name: "images", maxCount: 10 },
   { name: "videos", maxCount: 5 },
 ]);
+
+/**
+ * Optimize a product image upload via Sharp → single WebP on Cloudinary.
+ * @param {object} file - Multer file object
+ */
+export async function optimizeProductImageUpload(file) {
+  if (!validateProductImageMime(file.mimetype)) {
+    throw new Error(`Unsupported image type: ${file.mimetype}. Allowed: JPEG, PNG, WebP`);
+  }
+
+  if (file.size > IMAGE_CONFIG.maxUploadBytes) {
+    throw new Error(`Image exceeds ${IMAGE_CONFIG.maxUploadBytes / (1024 * 1024)}MB upload limit`);
+  }
+
+  try {
+    const meta = await optimizeProductImage(file.path, {
+      mimeType: file.mimetype,
+    });
+
+    // Remove multer temp file after Cloudinary upload
+    if (fs.existsSync(file.path)) {
+      fs.unlinkSync(file.path);
+    }
+
+    return meta;
+  } catch (error) {
+    if (fs.existsSync(file.path)) {
+      fs.unlinkSync(file.path);
+    }
+    throw error;
+  }
+}
 
 // Helper function to upload to Cloudinary
 export const uploadToCloudinary = async (filePath) => {

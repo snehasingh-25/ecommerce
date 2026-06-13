@@ -19,6 +19,7 @@ import sizeOptionRoutes from "./routes/size-options.js";
 import generateDescriptionRoutes from "./routes/generate-description.js";
 import chatRoutes from "./routes/chat.js";
 import instagramRoutes from "./routes/instagram.js";
+import reviewRoutes from "./routes/reviews.js";
 import cache from "./utils/cache.js";
 
 dotenv.config();
@@ -36,7 +37,7 @@ app.use(
       "https://www.giftchoice.net",
       "https://midnightblue-fish-476058.hostingersite.com"
     ],
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true
   })
@@ -157,6 +158,7 @@ app.use("/size-options", sizeOptionRoutes);
 app.use("/generate-description", generateDescriptionRoutes);
 app.use("/chat", chatRoutes);
 app.use("/instagram", instagramRoutes);
+app.use("/reviews", reviewRoutes);
 
 // Global error handling middleware (must be after all routes)
 app.use((err, req, res, next) => {

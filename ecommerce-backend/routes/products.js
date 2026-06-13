@@ -1,10 +1,28 @@
 import express from "express";
 import { verifyToken } from "../utils/auth.js";
-import { uploadProductMedia, getImageUrl, getVideoUrl } from "../utils/upload.js";
+import { uploadProductMedia, optimizeProductImageUpload, getVideoUrl } from "../utils/upload.js";
 import prisma from "../prisma.js";
 import { cacheMiddleware, invalidateCache } from "../utils/cache.js";
 import { validateInstagramEmbeds } from "../utils/instagram.js";
+import {
+  parseImagesMeta,
+  buildCompatImagesArray,
+  resolveProductImagesMeta,
+  formatProductForApi,
+  deleteRemovedImages,
+  deleteAllProductImageFolders,
+} from "../utils/productImageStorage.js";
+
 const router = express.Router();
+
+async function processUploadedProductImages(imageFiles) {
+  const metas = [];
+  for (const file of imageFiles) {
+    const meta = await optimizeProductImageUpload(file);
+    metas.push(meta);
+  }
+  return metas;
+}
 
 // Fisher-Yates shuffle algorithm for randomizing array
 function shuffleArray(array) {
@@ -342,16 +360,8 @@ router.get("/", (req, res, next) => {
       }
     }
 
-    // Parse JSON fields
-    let parsed = products.map(p => ({
-      ...p,
-      images: p.images ? JSON.parse(p.images) : [],
-      videos: p.videos ? JSON.parse(p.videos) : [],
-      keywords: p.keywords ? JSON.parse(p.keywords) : [],
-      categories: p.categories ? p.categories.map(pc => pc.category) : [],
-      occasions: p.occasions ? p.occasions.map(po => po.occasion) : [],
-      relations: p.relations ? p.relations.map(pr => pr.relation) : [],
-    }));
+    // Parse JSON fields (includes imagesMeta when present)
+    let parsed = products.map((p) => formatProductForApi(p));
 
     // Apply price and size filters (after fetching)
     if (minPrice || maxPrice || size) {
@@ -398,31 +408,6 @@ router.get("/", (req, res, next) => {
   }
 });
 
-function resolveProductImageUrls({ existingImages, imageOrder, imageFiles = [] }) {
-  const ordered = imageOrder ? (typeof imageOrder === "string" ? JSON.parse(imageOrder) : imageOrder) : null;
-  const files = Array.isArray(imageFiles) ? imageFiles : [];
-
-  if (Array.isArray(ordered) && ordered.length > 0) {
-    const imageUrls = [];
-    let fileIndex = 0;
-
-    for (const entry of ordered) {
-      if (entry === "NEW") {
-        if (fileIndex < files.length) {
-          imageUrls.push(files[fileIndex]);
-          fileIndex++;
-        }
-      } else if (typeof entry === "string" && entry.length > 0) {
-        imageUrls.push(entry);
-      }
-    }
-
-    return imageUrls;
-  }
-
-  const baseImages = existingImages ? (typeof existingImages === "string" ? JSON.parse(existingImages) : existingImages) : [];
-  return [...(Array.isArray(baseImages) ? baseImages : []), ...files];
-}
 
 // Get single product (public) - Cached for 5 minutes
 router.get("/:id", cacheMiddleware(5 * 60 * 1000), async (req, res) => {
@@ -458,16 +443,7 @@ router.get("/:id", cacheMiddleware(5 * 60 * 1000), async (req, res) => {
       return res.status(404).json({ message: "Product not found" });
     }
 
-    res.json({
-      ...product,
-      images: product.images ? JSON.parse(product.images) : [],
-      videos: product.videos ? JSON.parse(product.videos) : [],
-      instagramEmbeds: product.instagramEmbeds ? JSON.parse(product.instagramEmbeds) : [],
-      keywords: product.keywords ? JSON.parse(product.keywords) : [],
-      categories: product.categories ? product.categories.map(pc => pc.category) : [],
-      occasions: product.occasions ? product.occasions.map(po => po.occasion) : [],
-      relations: product.relations ? product.relations.map(pr => pr.relation) : [],
-    });
+    res.json(formatProductForApi(product));
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -482,15 +458,13 @@ router.post("/", verifyToken, uploadProductMedia, async (req, res) => {
     const { name, description, badge, isFestival, isNew, isTrending, isReady60Min, hasSinglePrice, singlePrice, originalPrice, categoryIds, sizes, keywords, occasionIds, relationIds, existingImages, existingVideos, instagramEmbeds } = req.body;
 
     const imageFiles = req.files?.images || [];
-    const uploadedImageUrls = [];
-    for (const file of imageFiles) {
-      const url = await getImageUrl(file);
-      uploadedImageUrls.push(url);
-    }
-    const imageUrls = resolveProductImageUrls({
+    const newMetas = await processUploadedProductImages(imageFiles);
+
+    let imagesMeta = resolveProductImagesMeta({
+      existingImagesMeta: [],
       existingImages,
       imageOrder: req.body.imageOrder,
-      imageFiles: uploadedImageUrls,
+      newMetas,
     });
     // Upload videos; existingVideos can provide initial URLs (e.g. duplicate)
     let videoUrls = [];
@@ -523,6 +497,7 @@ router.post("/", verifyToken, uploadProductMedia, async (req, res) => {
     const categoryIdsArray = categoryIds ? JSON.parse(categoryIds) : [];
     const occasionIdsArray = occasionIds ? JSON.parse(occasionIds) : [];
     const relationIdsArray = relationIds ? JSON.parse(relationIds) : [];
+    const compatImages = buildCompatImagesArray(imagesMeta);
 
     const product = await prisma.product.create({
       data: {
@@ -536,7 +511,8 @@ router.post("/", verifyToken, uploadProductMedia, async (req, res) => {
         hasSinglePrice: hasSinglePrice === "true" || hasSinglePrice === true,
         singlePrice: hasSinglePrice === "true" || hasSinglePrice === true ? (singlePrice ? parseFloat(singlePrice) : null) : null,
         originalPrice: originalPrice != null && originalPrice !== "" ? parseFloat(originalPrice) : null,
-        images: JSON.stringify(imageUrls),
+        images: JSON.stringify(compatImages),
+        imagesMeta: imagesMeta.length > 0 ? JSON.stringify(imagesMeta) : null,
         videos: videoUrls.length > 0 ? JSON.stringify(videoUrls) : null,
         instagramEmbeds: validatedInstagramEmbeds.length > 0 ? JSON.stringify(validatedInstagramEmbeds) : null,
         keywords: JSON.stringify(keywordsArray),
@@ -580,16 +556,18 @@ router.post("/", verifyToken, uploadProductMedia, async (req, res) => {
     });
 
     res.json({
-      ...product,
-      images: imageUrls,
+      ...formatProductForApi(product),
       videos: videoUrls,
       keywords: keywordsArray,
-      occasions: product.occasions ? product.occasions.map(po => po.occasion) : [],
-      relations: product.relations ? product.relations.map(pr => pr.relation) : [],
     });
   } catch (error) {
     console.error("Create product error:", error);
-    res.status(500).json({ error: error.message });
+    const isImageError =
+      error.message?.includes("optimize") ||
+      error.message?.includes("Unsupported image") ||
+      error.message?.includes("exceeds") ||
+      error.message?.includes("CLOUDINARY");
+    res.status(isImageError ? 400 : 500).json({ error: error.message });
   }
 });
 
@@ -609,18 +587,25 @@ router.put("/:id", verifyToken, uploadProductMedia, async (req, res) => {
       return res.status(404).json({ message: "Product not found" });
     }
 
-    // Handle images: support optional imageOrder for drag-and-drop ordering (array of URLs + "NEW" for new uploads)
-    const imageFiles = Array.isArray(req.files?.images) ? req.files.images : (req.files?.images ? [req.files.images] : []);
-    const uploadedImageUrls = [];
-    for (const file of imageFiles) {
-      const url = await getImageUrl(file);
-      uploadedImageUrls.push(url);
-    }
-    const imageUrls = resolveProductImageUrls({
+    const productId = Number(req.params.id);
+    const oldImagesMeta = parseImagesMeta(existingProduct.imagesMeta);
+
+    const imageFiles = Array.isArray(req.files?.images)
+      ? req.files.images
+      : req.files?.images
+        ? [req.files.images]
+        : [];
+    const newMetas = await processUploadedProductImages(imageFiles);
+
+    const imagesMeta = resolveProductImagesMeta({
+      existingImagesMeta: oldImagesMeta,
       existingImages,
       imageOrder,
-      imageFiles: uploadedImageUrls,
+      newMetas,
     });
+
+    const compatImages = buildCompatImagesArray(imagesMeta);
+    await deleteRemovedImages(oldImagesMeta, imagesMeta);
     // Handle videos
     let videoUrls = existingVideos ? JSON.parse(existingVideos) : [];
     const videoFiles = req.files?.videos || [];
@@ -680,7 +665,8 @@ router.put("/:id", verifyToken, uploadProductMedia, async (req, res) => {
         hasSinglePrice: hasSinglePrice === "true" || hasSinglePrice === true,
         singlePrice: hasSinglePrice === "true" || hasSinglePrice === true ? (singlePrice ? parseFloat(singlePrice) : null) : null,
         originalPrice: originalPrice != null && originalPrice !== "" ? parseFloat(originalPrice) : null,
-        images: JSON.stringify(imageUrls),
+        images: JSON.stringify(compatImages),
+        imagesMeta: imagesMeta.length > 0 ? JSON.stringify(imagesMeta) : null,
         videos: videoUrls.length > 0 ? JSON.stringify(videoUrls) : null,
         instagramEmbeds: validatedInstagramEmbeds.length > 0 ? JSON.stringify(validatedInstagramEmbeds) : null,
         keywords: JSON.stringify(keywordsArray),
@@ -724,18 +710,19 @@ router.put("/:id", verifyToken, uploadProductMedia, async (req, res) => {
     });
 
     res.json({
-      ...product,
-      images: imageUrls,
+      ...formatProductForApi(product),
       videos: videoUrls,
       instagramEmbeds: validatedInstagramEmbeds,
       keywords: keywordsArray,
-      categories: product.categories ? product.categories.map(pc => pc.category) : [],
-      occasions: product.occasions ? product.occasions.map(po => po.occasion) : [],
-      relations: product.relations ? product.relations.map(pr => pr.relation) : [],
     });
   } catch (error) {
     console.error("Update product error:", error);
-    res.status(500).json({ error: error.message });
+    const isImageError =
+      error.message?.includes("optimize") ||
+      error.message?.includes("Unsupported image") ||
+      error.message?.includes("exceeds") ||
+      error.message?.includes("CLOUDINARY");
+    res.status(isImageError ? 400 : 500).json({ error: error.message });
   }
 });
 
@@ -781,11 +768,21 @@ router.post("/reorder", verifyToken, async (req, res) => {
 // Delete product (Admin only)
 router.delete("/:id", verifyToken, async (req, res) => {
   try {
-    // Invalidate products cache on delete
     invalidateCache("/products");
-    
+
+    const productId = Number(req.params.id);
+    const existing = await prisma.product.findUnique({
+      where: { id: productId },
+      select: { imagesMeta: true },
+    });
+
+    if (existing) {
+      const imagesMeta = parseImagesMeta(existing.imagesMeta);
+      await deleteAllProductImageFolders(productId, imagesMeta);
+    }
+
     await prisma.product.delete({
-      where: { id: Number(req.params.id) },
+      where: { id: productId },
     });
     res.json({ message: "Product deleted successfully" });
   } catch (error) {

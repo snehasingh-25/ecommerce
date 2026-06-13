@@ -42,7 +42,8 @@ model Product {
   hasSinglePrice Boolean       @default(false) // If true, use singlePrice instead of sizes
   singlePrice   Float?         // Selling price for products without size variants
   originalPrice Float?         // MRP / list price for single-price products (strikethrough on frontend)
-  images        String         @db.Text // JSON array of image URLs
+  images        String         @db.Text // JSON array of image URLs (compat: large variant URLs)
+  imagesMeta    String?        @db.Text // JSON array of optimized image metadata (variants, dimensions)
   videos        String?        @db.Text // JSON array of video URLs (optional)
   instagramEmbeds String?      @db.Text // JSON array of Instagram embed objects: [{url, enabled, createdAt}]
   keywords      String         @db.Text // JSON array for multilingual search
@@ -56,12 +57,29 @@ model Product {
   occasions     ProductOccasion[]
   relations     ProductRelation[]
   reels         Reel[]
+  reviews       ProductReview[]
 
   @@index([createdAt])
   @@index([isTrending, createdAt])
   @@index([isNew, createdAt])
   @@index([isFestival, createdAt])
   @@index([order])
+}
+
+model ProductReview {
+  id           Int      @id @default(autoincrement())
+  productId    Int
+  customerName String
+  rating       Int      // 1–5
+  text         String   @db.Text
+  imageUrl     String?  @db.Text
+  isApproved   Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId, isApproved])
+  @@index([createdAt])
 }
 
 model ProductSize {
