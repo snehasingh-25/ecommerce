@@ -4,10 +4,82 @@ import ImageUpload from "./ImageUpload";
 import VideoUpload from "./VideoUpload";
 import InstagramEmbedInput from "./InstagramEmbedInput";
 import { useToast } from "../../context/ToastContext";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 // Treat as "edit" only when product has a valid server id (duplicate/temp have no or temp id)
 const isEditProduct = (p) =>
   p && (p.id != null && p.id !== "") && !String(p.id).startsWith("temp-");
+
+function SortableSizeRow({ size, index, onUpdate, onRemove }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: size.label });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="flex flex-wrap gap-2 items-center p-3 rounded-lg border border-gray-200 bg-gray-50/50"
+    >
+      <div
+        {...attributes}
+        {...listeners}
+        className="cursor-grab active:cursor-grabbing p-1 text-gray-400 hover:text-gray-600 shrink-0"
+        aria-label="Drag to reorder"
+      >
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" />
+        </svg>
+      </div>
+      <span className="font-semibold text-gray-700 min-w-[4rem]">{size.label}</span>
+      <input
+        type="number"
+        placeholder="Selling price"
+        value={size.price}
+        onChange={(e) => onUpdate(index, "price", e.target.value)}
+        className="w-28 px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-pink-500 transition text-sm"
+        step="0.01"
+        min="0"
+      />
+      <input
+        type="number"
+        placeholder="MRP (optional)"
+        value={size.originalPrice ?? ""}
+        onChange={(e) => onUpdate(index, "originalPrice", e.target.value)}
+        className="w-28 px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-pink-500 transition text-sm"
+        step="0.01"
+        min="0"
+      />
+      <button
+        type="button"
+        onClick={() => onRemove(index)}
+        className="px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition text-sm font-semibold"
+      >
+        Remove
+      </button>
+    </div>
+  );
+}
 
 function parseProductImages(images) {
   if (!images) return [];
@@ -595,6 +667,21 @@ export default function ProductForm({
       e.preventDefault();
       formRef.current?.requestSubmit?.();
     }
+  };
+
+  const sizeSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const handleSizeDragEnd = (event) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    setSizes((prev) => {
+      const oldIndex = prev.findIndex((s) => s.label === active.id);
+      const newIndex = prev.findIndex((s) => s.label === over.id);
+      return arrayMove(prev, oldIndex, newIndex);
+    });
   };
 
   const addSize = () => {
@@ -1193,43 +1280,33 @@ export default function ProductForm({
                   Add & save for future
                 </button>
               </div>
-              {/* Size rows: label, selling price, MRP */}
-              <div className="space-y-3">
-                {sizes.length === 0 ? (
-                  <p className="text-sm text-gray-500 italic">No sizes added. Select from above or add a custom size.</p>
-                ) : (
-                  sizes.map((size, index) => (
-                    <div key={index} className="flex flex-wrap gap-2 items-center p-3 rounded-lg border border-gray-200 bg-gray-50/50">
-                      <span className="font-semibold text-gray-700 min-w-[4rem]">{size.label}</span>
-                      <input
-                        type="number"
-                        placeholder="Selling price"
-                        value={size.price}
-                        onChange={(e) => updateSize(index, "price", e.target.value)}
-                        className="w-28 px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-pink-500 transition text-sm"
-                        step="0.01"
-                        min="0"
-                      />
-                      <input
-                        type="number"
-                        placeholder="MRP (optional)"
-                        value={size.originalPrice ?? ""}
-                        onChange={(e) => updateSize(index, "originalPrice", e.target.value)}
-                        className="w-28 px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-pink-500 transition text-sm"
-                        step="0.01"
-                        min="0"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => removeSize(index)}
-                        className="px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition text-sm font-semibold"
-                      >
-                        Remove
-                      </button>
+              {/* Size rows: label, selling price, MRP — draggable to reorder */}
+              {sizes.length === 0 ? (
+                <p className="text-sm text-gray-500 italic">No sizes added. Select from above or add a custom size.</p>
+              ) : (
+                <DndContext
+                  sensors={sizeSensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleSizeDragEnd}
+                >
+                  <SortableContext
+                    items={sizes.map((s) => s.label)}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    <div className="space-y-3">
+                      {sizes.map((size, index) => (
+                        <SortableSizeRow
+                          key={size.label}
+                          size={size}
+                          index={index}
+                          onUpdate={updateSize}
+                          onRemove={removeSize}
+                        />
+                      ))}
                     </div>
-                  ))
-                )}
-              </div>
+                  </SortableContext>
+                </DndContext>
+              )}
             </div>
           )}
         </div>
