@@ -396,11 +396,17 @@ export default function ProductForm({
     const orderedExisting = imageItems.filter((i) => i.type === "existing").map((i) => i.url);
     const orderedNewFiles = imageItems.filter((i) => i.type === "new").map((i) => i.file);
     const imageOrderPayload = imageItems.map((i) => (i.type === "existing" ? i.url : "NEW"));
-    if (product && (orderedExisting.length > 0 || orderedNewFiles.length > 0)) {
+    if (imageOrderPayload.length > 0) {
       formDataToSend.append("existingImages", JSON.stringify(orderedExisting));
-      if (imageOrderPayload.length > 0) {
-        formDataToSend.append("imageOrder", JSON.stringify(imageOrderPayload));
-      }
+      formDataToSend.append("imageOrder", JSON.stringify(imageOrderPayload));
+    }
+    if (product?.imagesMeta) {
+      formDataToSend.append(
+        "existingImagesMeta",
+        typeof product.imagesMeta === "string"
+          ? product.imagesMeta
+          : JSON.stringify(product.imagesMeta)
+      );
     }
     if (product && existingVideos.length > 0) {
       formDataToSend.append("existingVideos", JSON.stringify(existingVideos));

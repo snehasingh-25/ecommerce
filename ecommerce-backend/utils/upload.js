@@ -132,7 +132,7 @@ export const uploadProductMedia = multer({
  */
 export async function optimizeProductImageUpload(file) {
   if (!validateProductImageMime(file.mimetype)) {
-    throw new Error(`Unsupported image type: ${file.mimetype}. Allowed: JPEG, PNG, WebP`);
+    throw new Error(`Unsupported image type: ${file.mimetype}. Allowed: JPEG, PNG, WebP, HEIC, HEIF`);
   }
 
   if (file.size > IMAGE_CONFIG.maxUploadBytes) {

@@ -460,8 +460,11 @@ router.post("/", verifyToken, uploadProductMedia, async (req, res) => {
     const imageFiles = req.files?.images || [];
     const newMetas = await processUploadedProductImages(imageFiles);
 
+    const parsedExistingImagesMeta = req.body.existingImagesMeta
+      ? parseImagesMeta(req.body.existingImagesMeta)
+      : [];
     let imagesMeta = resolveProductImagesMeta({
-      existingImagesMeta: [],
+      existingImagesMeta: parsedExistingImagesMeta,
       existingImages,
       imageOrder: req.body.imageOrder,
       newMetas,

@@ -36,7 +36,7 @@ export const IMAGE_CONFIG = {
   },
 
   /** Allowed input MIME types for product images */
-  allowedMimeTypes: ["image/jpeg", "image/png", "image/webp"],
+  allowedMimeTypes: ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"],
 
   /** Legacy local paths (migration/cleanup only) */
   productsDir: "uploads/products",

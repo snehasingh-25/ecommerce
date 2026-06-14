@@ -1,0 +1,25 @@
+{"sessionId":"2c9f43","hypothesisId":"H-A","location":"ImageUpload.jsx:render","message":"render state","data":{"itemsLength":3,"canAdd":true,"imageItemsType":"array"},"timestamp":1781447333550}
+{"sessionId":"2c9f43","hypothesisId":"H-A","location":"ImageUpload.jsx:render","message":"render state","data":{"itemsLength":3,"canAdd":true,"imageItemsType":"array"},"timestamp":1781447333551}
+{"sessionId":"2c9f43","hypothesisId":"H-A","location":"ImageUpload.jsx:render","message":"render state","data":{"itemsLength":3,"canAdd":true,"imageItemsType":"array"},"timestamp":1781447333565}
+{"sessionId":"2c9f43","hypothesisId":"H-A","location":"ImageUpload.jsx:render","message":"render state","data":{"itemsLength":3,"canAdd":true,"imageItemsType":"array"},"timestamp":1781447333566}
+{"sessionId":"2c9f43","hypothesisId":"H-A","location":"ImageUpload.jsx:render","message":"render state","data":{"itemsLength":3,"canAdd":true,"imageItemsType":"array"},"timestamp":1781447333634}
+{"sessionId":"2c9f43","hypothesisId":"H-A","location":"ImageUpload.jsx:render","message":"render state","data":{"itemsLength":3,"canAdd":true,"imageItemsType":"array"},"timestamp":1781447333635}
+{"sessionId":"2c9f43","hypothesisId":"H-A","location":"ImageUpload.jsx:render","message":"render state","data":{"itemsLength":3,"canAdd":true,"imageItemsType":"array"},"timestamp":1781447333649}
+{"sessionId":"2c9f43","hypothesisId":"H-A","location":"ImageUpload.jsx:render","message":"render state","data":{"itemsLength":3,"canAdd":true,"imageItemsType":"array"},"timestamp":1781447333650}
+{"sessionId":"2c9f43","hypothesisId":"H-A","location":"ImageUpload.jsx:render","message":"render state","data":{"itemsLength":3,"canAdd":true,"imageItemsType":"array"},"timestamp":1781447333659}
+{"sessionId":"2c9f43","hypothesisId":"H-A","location":"ImageUpload.jsx:render","message":"render state","data":{"itemsLength":3,"canAdd":true,"imageItemsType":"array"},"timestamp":1781447333659}
+{"sessionId":"2c9f43","hypothesisId":"H-B H-C","location":"ImageUpload.jsx:handleDrop","message":"handleDrop fired","data":{"canAdd":true,"itemsLength":3,"hasFiles":true,"filesCount":1},"timestamp":1781447333933}
+{"sessionId":"2c9f43","hypothesisId":"H-F","location":"ImageUpload.jsx:filterValidFiles","message":"checking file","data":{"name":"WhatsApp Image 2026-06-13 at 3.14.51 PM.jpeg","type":"image/jpeg","size":84262,"typeStartsWithImage":true,"extMatch":true},"timestamp":1781447333936}
+{"sessionId":"2c9f43","hypothesisId":"H-D","location":"ImageUpload.jsx:handleDrop:afterFilter","message":"about to call onImageItemsChange","data":{"toAddCount":1,"newFilesCount":1,"currentItemsLength":3},"timestamp":1781447333945}
+{"sessionId":"2c9f43","hypothesisId":"H-A","location":"ImageUpload.jsx:render","message":"render state","data":{"itemsLength":4,"canAdd":true,"imageItemsType":"array"},"timestamp":1781447333962}
+{"sessionId":"2c9f43","hypothesisId":"H-A","location":"ImageUpload.jsx:render","message":"render state","data":{"itemsLength":4,"canAdd":true,"imageItemsType":"array"},"timestamp":1781447333963}
+{"sessionId":"2c9f43","hypothesisId":"H-A","location":"ImageUpload.jsx:render","message":"render state","data":{"itemsLength":4,"canAdd":true,"imageItemsType":"array"},"timestamp":1781447333999}
+{"sessionId":"2c9f43","hypothesisId":"H-A","location":"ImageUpload.jsx:render","message":"render state","data":{"itemsLength":4,"canAdd":true,"imageItemsType":"array"},"timestamp":1781447334000}
+{"sessionId":"2c9f43","hypothesisId":"H-A","location":"ImageUpload.jsx:render","message":"render state","data":{"itemsLength":3,"canAdd":true,"imageItemsType":"array"},"timestamp":1781447336438}
+{"sessionId":"2c9f43","hypothesisId":"H-A","location":"ImageUpload.jsx:render","message":"render state","data":{"itemsLength":3,"canAdd":true,"imageItemsType":"array"},"timestamp":1781447336439}
+{"sessionId":"2c9f43","hypothesisId":"H-A","location":"ImageUpload.jsx:render","message":"render state","data":{"itemsLength":2,"canAdd":true,"imageItemsType":"array"},"timestamp":1781447341075}
+{"sessionId":"2c9f43","hypothesisId":"H-A","location":"ImageUpload.jsx:render","message":"render state","data":{"itemsLength":2,"canAdd":true,"imageItemsType":"array"},"timestamp":1781447341076}
+{"sessionId":"2c9f43","hypothesisId":"H-A","location":"ImageUpload.jsx:render","message":"render state","data":{"itemsLength":0,"canAdd":true,"imageItemsType":"array"},"timestamp":1781447344771}
+{"sessionId":"2c9f43","hypothesisId":"H-A","location":"ImageUpload.jsx:render","message":"render state","data":{"itemsLength":0,"canAdd":true,"imageItemsType":"array"},"timestamp":1781447344772}
+{"sessionId":"2c9f43","hypothesisId":"H-A","location":"ImageUpload.jsx:render","message":"render state","data":{"itemsLength":0,"canAdd":true,"imageItemsType":"array"},"timestamp":1781447345010}
+{"sessionId":"2c9f43","hypothesisId":"H-A","location":"ImageUpload.jsx:render","message":"render state","data":{"itemsLength":0,"canAdd":true,"imageItemsType":"array"},"timestamp":1781447345010}
