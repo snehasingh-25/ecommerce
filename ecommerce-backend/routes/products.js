@@ -774,6 +774,24 @@ router.post("/reorder", verifyToken, async (req, res) => {
   }
 });
 
+// Quick boolean field update (Admin only) — no multipart needed
+router.patch("/:id", verifyToken, async (req, res) => {
+  try {
+    const productId = parseInt(req.params.id);
+    const allowed = ["isReadySameDay", "isFestival", "isNew", "isTrending", "isReady60Min"];
+    const data = {};
+    for (const key of allowed) {
+      if (req.body[key] !== undefined) data[key] = Boolean(req.body[key]);
+    }
+    if (Object.keys(data).length === 0) return res.status(400).json({ error: "No valid fields to update" });
+    const product = await prisma.product.update({ where: { id: productId }, data });
+    invalidateCache("/products");
+    res.json(product);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Delete product (Admin only)
 router.delete("/:id", verifyToken, async (req, res) => {
   try {
