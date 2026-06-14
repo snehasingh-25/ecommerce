@@ -475,6 +475,7 @@ export default function ProductDetail() {
                 productName={product.name}
                 badges={{
                   isReady60Min: product.isReady60Min,
+                  isReadySameDay: product.isReadySameDay,
                   isFestival: product.isFestival,
                   isNew: product.isNew,
                   badge: product.badge,

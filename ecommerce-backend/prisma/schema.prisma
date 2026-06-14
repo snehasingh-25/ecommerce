@@ -39,6 +39,7 @@ model Product {
   isNew         Boolean        @default(false)
   isTrending    Boolean        @default(false)
   isReady60Min  Boolean        @default(false) // 60 minutes ready/delivery option
+  isReadySameDay Boolean       @default(false) // Same day ready/delivery option
   hasSinglePrice Boolean       @default(false) // If true, use singlePrice instead of sizes
   singlePrice   Float?         // Selling price for products without size variants
   originalPrice Float?         // MRP / list price for single-price products (strikethrough on frontend)

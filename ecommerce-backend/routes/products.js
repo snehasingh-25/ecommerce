@@ -135,7 +135,8 @@ router.get("/filters", cacheMiddleware(5 * 60 * 1000), async (req, res) => {
         isNew: products.some(p => p.isNew),
         isTrending: products.some(p => p.isTrending),
         isFestival: products.some(p => p.isFestival),
-        isReady60Min: products.some(p => p.isReady60Min)
+        isReady60Min: products.some(p => p.isReady60Min),
+        isReadySameDay: products.some(p => p.isReadySameDay)
       }
     });
   } catch (error) {
@@ -154,7 +155,7 @@ router.get("/", (req, res, next) => {
 }, async (req, res) => {
   try {
     const { 
-      category, occasion, relation, isNew, isFestival, isTrending, isReady60Min, 
+      category, occasion, relation, isNew, isFestival, isTrending, isReady60Min, isReadySameDay, 
       search, shuffle, sort, 
       minPrice, maxPrice, size, badge 
     } = req.query;
@@ -206,6 +207,9 @@ router.get("/", (req, res, next) => {
     }
     if (isReady60Min === "true") {
       where.isReady60Min = true;
+    }
+    if (isReadySameDay === "true") {
+      where.isReadySameDay = true;
     }
     if (badge) {
       where.badge = badge;
@@ -455,7 +459,7 @@ router.post("/", verifyToken, uploadProductMedia, async (req, res) => {
     // Invalidate products cache on create
     invalidateCache("/products");
     
-    const { name, description, badge, isFestival, isNew, isTrending, isReady60Min, hasSinglePrice, singlePrice, originalPrice, categoryIds, sizes, keywords, occasionIds, relationIds, existingImages, existingVideos, instagramEmbeds } = req.body;
+    const { name, description, badge, isFestival, isNew, isTrending, isReady60Min, isReadySameDay, hasSinglePrice, singlePrice, originalPrice, categoryIds, sizes, keywords, occasionIds, relationIds, existingImages, existingVideos, instagramEmbeds } = req.body;
 
     const imageFiles = req.files?.images || [];
     const newMetas = await processUploadedProductImages(imageFiles);
@@ -511,6 +515,7 @@ router.post("/", verifyToken, uploadProductMedia, async (req, res) => {
         isNew: isNew === "true" || isNew === true,
         isTrending: isTrending === "true" || isTrending === true,
         isReady60Min: isReady60Min === "true" || isReady60Min === true,
+        isReadySameDay: isReadySameDay === "true" || isReadySameDay === true,
         hasSinglePrice: hasSinglePrice === "true" || hasSinglePrice === true,
         singlePrice: hasSinglePrice === "true" || hasSinglePrice === true ? (singlePrice ? parseFloat(singlePrice) : null) : null,
         originalPrice: originalPrice != null && originalPrice !== "" ? parseFloat(originalPrice) : null,
@@ -580,7 +585,7 @@ router.put("/:id", verifyToken, uploadProductMedia, async (req, res) => {
     // Invalidate products cache on update
     invalidateCache("/products");
     
-    const { name, description, badge, isFestival, isNew, isTrending, isReady60Min, hasSinglePrice, singlePrice, originalPrice, categoryIds, sizes, keywords, existingImages, existingVideos, instagramEmbeds, occasionIds, relationIds, imageOrder } = req.body;
+    const { name, description, badge, isFestival, isNew, isTrending, isReady60Min, isReadySameDay, hasSinglePrice, singlePrice, originalPrice, categoryIds, sizes, keywords, existingImages, existingVideos, instagramEmbeds, occasionIds, relationIds, imageOrder } = req.body;
 
     const existingProduct = await prisma.product.findUnique({
       where: { id: Number(req.params.id) },
@@ -665,6 +670,7 @@ router.put("/:id", verifyToken, uploadProductMedia, async (req, res) => {
         isNew: isNew === "true" || isNew === true,
         isTrending: isTrending === "true" || isTrending === true,
         isReady60Min: isReady60Min === "true" || isReady60Min === true,
+        isReadySameDay: isReadySameDay === "true" || isReadySameDay === true,
         hasSinglePrice: hasSinglePrice === "true" || hasSinglePrice === true,
         singlePrice: hasSinglePrice === "true" || hasSinglePrice === true ? (singlePrice ? parseFloat(singlePrice) : null) : null,
         originalPrice: originalPrice != null && originalPrice !== "" ? parseFloat(originalPrice) : null,

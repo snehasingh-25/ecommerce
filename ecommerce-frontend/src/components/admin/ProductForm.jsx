@@ -121,6 +121,7 @@ export default function ProductForm({
     isNew: false,
     isTrending: false,
     isReady60Min: false,
+    isReadySameDay: false,
     hasSinglePrice: false,
     singlePrice: "",
     originalPrice: "", // MRP for single-price products
@@ -169,6 +170,7 @@ export default function ProductForm({
         isNew: product.isNew || false,
         isTrending: product.isTrending || false,
         isReady60Min: product.isReady60Min || false,
+        isReadySameDay: product.isReadySameDay || false,
         hasSinglePrice: product.hasSinglePrice || false,
         singlePrice: product.singlePrice ? String(product.singlePrice) : "",
         originalPrice: product.originalPrice != null ? String(product.originalPrice) : "",
@@ -219,6 +221,7 @@ export default function ProductForm({
         isNew: false,
         isTrending: false,
         isReady60Min: false,
+        isReadySameDay: false,
         hasSinglePrice: false,
         singlePrice: "",
         originalPrice: "",
@@ -244,6 +247,7 @@ export default function ProductForm({
               isNew: product.isNew || false,
               isTrending: product.isTrending || false,
               isReady60Min: product.isReady60Min || false,
+              isReadySameDay: product.isReadySameDay || false,
               hasSinglePrice: product.hasSinglePrice || false,
               singlePrice: product.singlePrice ? String(product.singlePrice) : "",
               originalPrice: product.originalPrice != null ? String(product.originalPrice) : "",
@@ -257,6 +261,7 @@ export default function ProductForm({
               isNew: false,
               isTrending: false,
               isReady60Min: false,
+              isReadySameDay: false,
               hasSinglePrice: false,
               singlePrice: "",
               originalPrice: "",
@@ -369,6 +374,7 @@ export default function ProductForm({
           isNew: fullProduct.isNew || false,
           isTrending: fullProduct.isTrending || false,
           isReady60Min: fullProduct.isReady60Min || false,
+          isReadySameDay: fullProduct.isReadySameDay || false,
           hasSinglePrice: fullProduct.hasSinglePrice || false,
           singlePrice: fullProduct.singlePrice ? String(fullProduct.singlePrice) : "",
           originalPrice: fullProduct.originalPrice != null ? String(fullProduct.originalPrice) : "",
@@ -438,6 +444,7 @@ export default function ProductForm({
     formDataToSend.append("isNew", formData.isNew);
     formDataToSend.append("isTrending", formData.isTrending);
     formDataToSend.append("isReady60Min", formData.isReady60Min);
+    formDataToSend.append("isReadySameDay", formData.isReadySameDay);
     formDataToSend.append("hasSinglePrice", formData.hasSinglePrice);
     formDataToSend.append("singlePrice", formData.hasSinglePrice && formData.singlePrice ? formData.singlePrice : "");
     formDataToSend.append("originalPrice", formData.hasSinglePrice && formData.originalPrice ? formData.originalPrice : "");
@@ -633,6 +640,7 @@ export default function ProductForm({
       isNew: false,
       isTrending: false,
       isReady60Min: false,
+      isReadySameDay: false,
       hasSinglePrice: false,
       singlePrice: "",
       originalPrice: "",
@@ -1030,6 +1038,15 @@ export default function ProductForm({
                   className="w-4 h-4 text-pink-600 rounded focus:ring-pink-500"
                 />
                 <span className="text-sm text-gray-700">60 Minutes Ready</span>
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={formData.isReadySameDay}
+                  onChange={(e) => setFormData({ ...formData, isReadySameDay: e.target.checked })}
+                  className="w-4 h-4 text-pink-600 rounded focus:ring-pink-500"
+                />
+                <span className="text-sm text-gray-700">Same Day Ready</span>
               </label>
             </div>
           </div>
