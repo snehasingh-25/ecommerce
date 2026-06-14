@@ -501,8 +501,6 @@ export default function ProductDetail() {
                     <PriceDisplay selectedSize={selectedSize} product={product} />
                   </div>
 
-                  <DeliveryAssurance />
-
                   {/* Size selector */}
                   {product.sizes?.length ? (
                     <div className="mt-5">
@@ -550,7 +548,7 @@ export default function ProductDetail() {
                     </div>
                     <QuantitySelector quantity={quantity} onChange={setQuantity} />
                   </div>
-
+                   <DeliveryAssurance />
                   {/* Total */}
                   {selectedSize && priceInfo ? (
                     <div

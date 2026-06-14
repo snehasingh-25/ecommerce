@@ -167,7 +167,7 @@ router.post("/", async (req, res) => {
     if (apiKey && apiKey.trim() !== "") {
       const ai = new GoogleGenAI({ apiKey });
       const response = await ai.models.generateContent({
-        model: "gemma-3-27b-it",
+        model: "gemini-2.5-flash",
         contents: [{ role: "user", parts }],
         config: {
           maxOutputTokens: 800,
