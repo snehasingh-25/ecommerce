@@ -45,11 +45,57 @@ export function isCloudinaryConfigured() {
   return cloudinaryConfigured;
 }
 
-const TRANSFORM_BASE = {
-  crop: "limit",
-  fetch_format: "webp",
-  quality: "auto",
-};
+function buildTransform({ width, crop = IMAGE_CONFIG.delivery.crop }) {
+  const transform = {
+    fetch_format: IMAGE_CONFIG.delivery.fetchFormat,
+    quality: IMAGE_CONFIG.delivery.quality,
+  };
+
+  if (width) {
+    transform.width = width;
+    transform.crop = crop;
+  }
+
+  return transform;
+}
+
+/**
+ * Build a Cloudinary delivery URL with f_auto, q_auto, width, and c_fill.
+ */
+export function buildCloudinaryDeliveryUrl(publicId, width, { crop } = {}) {
+  assertCloudinaryConfigured();
+
+  return cloudinary.url(publicId, {
+    secure: true,
+    transformation: [buildTransform({ width, crop })],
+  });
+}
+
+/**
+ * Inject delivery transforms into an existing Cloudinary URL string.
+ */
+export function injectCloudinaryTransforms(url, width = IMAGE_CONFIG.delivery.defaultWidth) {
+  if (!url || !url.includes("res.cloudinary.com")) return url;
+
+  const marker = "/image/upload/";
+  const markerIndex = url.indexOf(marker);
+  if (markerIndex === -1) return url;
+
+  const prefix = url.slice(0, markerIndex + marker.length);
+  const rest = url.slice(markerIndex + marker.length);
+  const slashIndex = rest.indexOf("/");
+  const firstSegment = slashIndex === -1 ? rest : rest.slice(0, slashIndex);
+  const afterFirstSegment = slashIndex === -1 ? "" : rest.slice(slashIndex + 1);
+  if (firstSegment.includes("f_auto")) return url;
+
+  const transform = `f_auto,q_auto,w_${width},c_${IMAGE_CONFIG.delivery.crop}`;
+
+  if (firstSegment.includes(",")) {
+    return `${prefix}${transform}${afterFirstSegment ? `/${afterFirstSegment}` : ""}`;
+  }
+
+  return `${prefix}${transform}/${rest}`;
+}
 
 /**
  * Upload a WebP buffer to Cloudinary.
@@ -81,17 +127,11 @@ export function uploadWebpBuffer(buffer, { publicId, folder = IMAGE_CONFIG.cloud
 export function buildVariantUrls(publicId, secureUrl) {
   assertCloudinaryConfigured();
 
-  const makeUrl = (width) =>
-    cloudinary.url(publicId, {
-      secure: true,
-      transformation: [{ width, ...TRANSFORM_BASE }],
-    });
-
   return {
-    thumb: makeUrl(IMAGE_CONFIG.variants.thumb),
-    medium: makeUrl(IMAGE_CONFIG.variants.medium),
-    large: makeUrl(IMAGE_CONFIG.variants.large),
-    original: secureUrl,
+    thumb: buildCloudinaryDeliveryUrl(publicId, IMAGE_CONFIG.variants.thumb),
+    medium: buildCloudinaryDeliveryUrl(publicId, IMAGE_CONFIG.variants.medium),
+    large: buildCloudinaryDeliveryUrl(publicId, IMAGE_CONFIG.variants.large),
+    original: buildCloudinaryDeliveryUrl(publicId, IMAGE_CONFIG.maxLongEdge, { crop: "limit" }),
   };
 }
 

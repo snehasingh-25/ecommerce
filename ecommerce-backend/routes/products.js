@@ -245,6 +245,7 @@ router.get("/", (req, res, next) => {
         { name: { contains: search } },
         { description: { contains: search } },
         { name: { startsWith: search } },
+        { keywords: { contains: search } },
       ];
 
       if (occasionIds.length > 0) {

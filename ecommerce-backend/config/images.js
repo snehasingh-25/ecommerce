@@ -27,6 +27,15 @@ export const IMAGE_CONFIG = {
     large: 1200,
   },
 
+  /** Cloudinary delivery transforms applied to delivery URLs */
+  delivery: {
+    fetchFormat: "auto",
+    quality: "auto",
+    crop: "fill",
+    /** Default width for non-product uploads (banners, categories, reviews, etc.) */
+    defaultWidth: 600,
+  },
+
   /** WebP encoder defaults — quality stepped down automatically if over size limit */
   webp: {
     quality: 88,

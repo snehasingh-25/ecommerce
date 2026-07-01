@@ -9,6 +9,10 @@ import {
   optimizeProductImage,
   validateProductImageMime,
 } from "./imageOptimizer.js";
+import {
+  buildCloudinaryDeliveryUrl,
+  isCloudinaryConfigured,
+} from "./cloudinaryStorage.js";
 
 dotenv.config();
 
@@ -170,6 +174,9 @@ export const uploadToCloudinary = async (filePath) => {
     });
     // Delete local file after upload
     fs.unlinkSync(filePath);
+    if (isCloudinaryConfigured()) {
+      return buildCloudinaryDeliveryUrl(result.public_id, IMAGE_CONFIG.delivery.defaultWidth);
+    }
     return result.secure_url;
   } catch (error) {
     console.error("Cloudinary upload error:", error);
